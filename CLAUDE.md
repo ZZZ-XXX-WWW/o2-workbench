@@ -16,7 +16,7 @@ o2-workbench/
 ├── backend/                   # ★ 后端：FastAPI（localhost:8527）
 │   ├── main.py                # 入口，注册所有路由
 │   ├── models.py              # 数据库模型（SQLite + SQLAlchemy）
-│   ├── product_models.py      # 商品搜索独立数据库模型
+│   ├── product_models.py      # 商品搜索独立数据库模型（含 PriceChangeLog）
 │   └── routes/                # API 路由
 │       ├── tools.py           #   工具管理
 │       ├── websites.py        #   网站管理
@@ -24,14 +24,14 @@ o2-workbench/
 │       ├── departments.py     #   部门管理
 │       ├── o2oa_auth.py       #   O2OA 认证代理
 │       ├── hexiao.py          #   核销工具 API
-│       └── product_search.py  #   商品搜索 API（与 product-search-web 配合）
+│       └── product_search.py  #   商品搜索 API（含调价日志、价格变动记录）
 ├── product_search/            # ★ 商品搜索桌面版：PySide6
 │   ├── ui_pyside6.py          #   主界面（详情弹窗支持编辑、分销商报价）
 │   ├── database.py            #   ProductDatabase 类（JSON 存储 + 向量搜索）
 │   ├── extract_features.py    #   调用阿里云百炼 qwen3-vl-embedding
 │   └── data/                  #   商品数据（products.json）
 ├── product-search-web/        # ★ 商品搜索 Web 版：React + Webpack
-│   ├── src/App.tsx            #   主应用（上传、搜索、详情弹窗编辑、备注图片、分销商报价）
+│   ├── src/App.tsx            #   主应用（上传、搜索、详情弹窗编辑、备注图片、分销商报价、调价记录面板）
 │   ├── webpack.config.js      #   构建输出到 ../public/product-search/
 │   └── dev-server:3266        #   开发服务器（热更新）
 ├── hexiao/                    # ★ 核销工具桌面版：PySide6
@@ -114,9 +114,11 @@ cd hexiao-web && npm run build           # → public/hexiao-new/
 - **商品搜索**：
   - 以图搜图（qwen3-vl-embedding 2560维，可选 Rerank）
   - 商品 CRUD + 详情弹窗编辑
-  - 分销商报价（分销1/2）
-  - 备注插入图片
+  - 分销商报价（含名称、价格、运费、备注，分销1/2）
+  - 备注插入图片（`[图片: url]` 标记）
   - 搜索状态反馈
+  - **独立调价记录面板**（跨商品通用价格变动日志，支持分页/筛选）
+  - **编辑自动记录调价**（成本/运费/分销商价格变动自动记入 PriceChangeLog）
   - 桌面版 PySide6（独立）
 - **工具区**：核销工具、商品搜索 iframe 弹窗
 - **登录**：O2OA 真实认证
@@ -146,6 +148,7 @@ cd hexiao-web && npm run build           # → public/hexiao-new/
 ┌─────────────────────▼────────────────────────┐
 │       FastAPI 后端（:8527）                     │
 │  O2OA代理 | 工具/网站CRUD | 核销API | 商品搜索API │
+│              PriceChangeLog 调价日志            │
 └─────────────────────┬────────────────────────┘
                       │ REST API
 ┌─────────────────────▼────────────────────────┐
@@ -166,18 +169,25 @@ cd hexiao-web && npm run build           # → public/hexiao-new/
 ## 商品搜索功能详情
 
 ### 数据录入
-- 上传商品图片 + 基本信息（咨询日期、厂家名称、型号代码）
+- 上传商品图片 + 基本信息（咨询日期、厂家名称、型号代码、成本价、运费）
 - 备注支持多行文本和插入图片（上传到 `/api/products/upload-remark-image`，标记为 `[图片: url]`）
-- 展开"分销商报价"可填写两个分销商的价格、运费、备注
+- 展开"分销商报价"可填写两个分销商的名称、价格、运费、备注
 
 ### 搜索
 - 以图搜图（qwen3-vl-embedding 2560维），可选 Rerank 精排
 - 搜索状态反馈（搜索中 → 完成数/失败提示）
 
 ### 详情弹窗
-- 查看完整信息（含分销商报价）
+- 查看完整信息（含分销商名称/价格/运费）
 - 点击"编辑"切换编辑模式，保存后自动刷新列表
-- 支持删除
+- 编辑时成本/运费/分销商价格变动自动记录到 PriceChangeLog
+- 支持删除商品
+
+### 独立调价记录面板
+- 主界面「管理数据库」下方有「调价记录」按钮
+- 弹窗显示所有商品的价格变动记录（时间、商品、字段、旧值、新值）
+- 支持按字段筛选（成本价/运费/分销商1价格/分销商1运费/分销商2价格/分销商2运费）
+- 支持分页查看
 
 ### 管理数据库
 - 卡片视图，每个卡片有「详情」和「删除」按钮
@@ -187,8 +197,21 @@ cd hexiao-web && npm run build           # → public/hexiao-new/
 | 存储 | 位置 | 用途 |
 |------|------|------|
 | `backend/workbench.db` | SQLite | 主工作台（用户、部门、工具、任务） |
-| `backend/product_search.db` | SQLite | 商品搜索 Web（向量 embedding + 分销商报价） |
+| `backend/product_search.db` | SQLite | 商品搜索 Web（向量 embedding + 分销商报价 + PriceChangeLog 调价日志） |
 | `product_search/data/products.json` | JSON | 商品搜索桌面版 |
+
+### PriceChangeLog 字段说明
+| 字段 | 说明 |
+|------|------|
+| `product_id` | 关联商品 ID |
+| `product_name` | 商品名称（冗余，方便查询） |
+| `field_name` | 变动的字段：cost_price / shipping_fee / dist1_base_price / dist1_shipping_fee / dist2_base_price / dist2_shipping_fee |
+| `field_label` | 中文标签：成本价 / 运费 / 分销商1价格 / ... |
+| `old_value` | 旧值 |
+| `new_value` | 新值 |
+| `effective_date` | 生效日期 |
+| `note` | 备注 |
+| `created_at` | 记录时间 |
 
 ## 关键文件路径
 | 文件 | 路径 |
@@ -198,7 +221,7 @@ cd hexiao-web && npm run build           # → public/hexiao-new/
 | O2OA 认证 | `backend/routes/o2oa_auth.py` |
 | 核销 API | `backend/routes/hexiao.py` |
 | 商品搜索 API | `backend/routes/product_search.py` |
-| 商品搜索模型 | `backend/product_models.py` |
+| 商品搜索模型 | `backend/product_models.py`（含 PriceChangeLog） |
 | O2OA 客户端 | `backend/o2oa_client.py` |
 | 前端 O2OA 工具 | `src/api/o2oa.js` |
 | 商品搜索 Web 源码 | `product-search-web/src/App.tsx` |
@@ -212,3 +235,5 @@ cd hexiao-web && npm run build           # → public/hexiao-new/
 4. **API Key**：阿里云 DashScope 优先读 `DASHSCOPE_API_KEY` 环境变量，未设置时用代码中预设 key
 5. **后端热重载局限**：只监视 `backend/`，修改 `product_search/` 下文件需完全重启
 6. **分销商报价存库**：`Product()` 构造函数必须显式传入 `dist1_base_price` 等字段
+7. **路由顺序**：`/price-changes`（无参数）必须在 `/{product_id}`（通配）之前定义，否则会被当成商品 ID
+8. **新增字段同时改三处**：改模型(`product_models.py`) → 改 API(`product_search.py`) → 改前端(`App.tsx`) → 构建 → kill 后端重启
