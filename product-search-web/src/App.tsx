@@ -399,6 +399,8 @@ function App() {
 
   const handleDetailSave = async () => {
     if (!detailProduct) return;
+    const oldCost = parseFloat(detailProduct.cost) || 0;
+    const newCost = parseFloat(detailForm.cost) || 0;
     try {
       const body = {
         inquiry_date: detailForm.date,
@@ -406,7 +408,7 @@ function App() {
         manufacturer_code: detailForm.model,
         address: detailForm.address,
         manufacturer_link: detailForm.link,
-        cost_price: parseFloat(detailForm.cost) || 0,
+        cost_price: newCost,
         shipping_fee: parseFloat(detailForm.shipping) || 0,
         color: detailForm.color,
         size: detailForm.size,
@@ -423,8 +425,28 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      // 如果成本价变了，自动记录调价历史
+      if (oldCost !== newCost && newCost > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        await fetch(`${API}/api/products/${detailProduct.id}/price-history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            new_price: newCost,
+            effective_date: today,
+            note: '编辑保存时自动更新',
+          }),
+        });
+      }
       setDetailEditing(false);
-      setDetailProduct({ ...detailProduct, ...detailForm });
+      // 刷新详情以获取最新的 price_history
+      const res = await fetch(`${API}/api/products/${detailProduct.id}`);
+      const full = await res.json();
+      setDetailProduct((prev: any) => ({
+        ...prev, ...detailForm,
+        price_history: full.price_history || [],
+        cost: String(newCost),
+      }));
       loadProducts();
     } catch (e) {
       console.error('Save failed:', e);
