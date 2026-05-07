@@ -371,6 +371,8 @@ function App() {
   const [detailProduct, setDetailProduct] = useState<any>(null);
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailForm, setDetailForm] = useState<any>({});
+  const [priceAdjust, setPriceAdjust] = useState({ newPrice: '', date: '', note: '' });
+  const [showPriceForm, setShowPriceForm] = useState(false);
 
   const handleDetailEdit = () => {
     if (!detailProduct) return;
@@ -426,6 +428,37 @@ function App() {
       loadProducts();
     } catch (e) {
       console.error('Save failed:', e);
+    }
+  };
+
+  const handleAddPriceHistory = async () => {
+    if (!detailProduct || !priceAdjust.date || !priceAdjust.newPrice) return;
+    try {
+      const res = await fetch(`${API}/api/products/${detailProduct.id}/price-history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_price: parseFloat(priceAdjust.newPrice),
+          effective_date: priceAdjust.date,
+          note: priceAdjust.note,
+        }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        const res2 = await fetch(`${API}/api/products/${detailProduct.id}`);
+        const full = await res2.json();
+        setDetailProduct((prev: any) => ({
+          ...prev,
+          cost: String(full.cost_price),
+          cost_price: full.cost_price,
+          price_history: full.price_history || [],
+        }));
+        setPriceAdjust({ newPrice: '', date: '', note: '' });
+        setShowPriceForm(false);
+        loadProducts();
+      }
+    } catch (e) {
+      console.error('Add price history failed:', e);
     }
   };
 
@@ -640,7 +673,6 @@ function App() {
 
           <button onClick={handleAddProduct} disabled={!uploadImage} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
           <button onClick={() => setShowManageDb(true)} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs mb-2`}><Settings className="w-3 h-3" />管理数据库</button>
-          <button onClick={() => alert('调价功能开发中')} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs`}><Settings className="w-3 h-3" />调价</button>
 
           {showMoreFields && (
             <div className="absolute left-full top-0 h-full z-50 ml-4" style={{width:550}}>
@@ -791,7 +823,7 @@ function App() {
               <span style={{fontSize:12,color:'#f59e0b',background:'#fffbeb',padding:'2px 10px',borderRadius:4}}>编辑模式</span>
             )}
           </div>
-          <button onClick={() => { setShowDetail(false); setDetailEditing(false); }} style={{background:'none',border:'none',cursor:'pointer',fontSize:22,color:'#999',padding:'0 8px',lineHeight:1}}>×</button>
+          <button onClick={() => { setShowDetail(false); setDetailEditing(false); setShowPriceForm(false); setPriceAdjust({newPrice:'',date:'',note:''}); }} style={{background:'none',border:'none',cursor:'pointer',fontSize:22,color:'#999',padding:'0 8px',lineHeight:1}}>×</button>
         </div>
         <div style={{flex:1,overflow:'auto',scrollbarWidth:'none',padding:20}}>
           <div style={{display:'flex',gap:20,marginBottom:16}}>
@@ -855,6 +887,47 @@ function App() {
               </div>
             </div>
           </div>
+          {/* 调价历史 */}
+          <div style={{background:'#fff7ed',borderRadius:8,border:'1px solid #fed7aa',padding:'12px 16px',marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:600,color:'#ea580c'}}>📈 调价历史</div>
+              <div style={{fontSize:12,color:'#666'}}>当前成本: <strong>¥{detailProduct.cost || '0'}</strong></div>
+            </div>
+            {!showPriceForm ? (
+              <button onClick={() => setShowPriceForm(true)} style={{padding:'4px 12px',fontSize:11,border:'1px solid #ea580c',background:'#fff',color:'#ea580c',borderRadius:6,cursor:'pointer',marginBottom:8}}>+ 新增调价</button>
+            ) : (
+              <div style={{background:'#fff',borderRadius:6,padding:10,marginBottom:8}}>
+                <div style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+                  <span style={{fontSize:11,color:'#666',width:42}}>新价格</span>
+                  <input type="number" value={priceAdjust.newPrice} onChange={e => setPriceAdjust({...priceAdjust, newPrice: e.target.value})} placeholder="0.00" style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} />
+                  <span style={{fontSize:11,color:'#666',width:36}}>生效日</span>
+                  <input type="date" value={priceAdjust.date} onChange={e => setPriceAdjust({...priceAdjust, date: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} />
+                </div>
+                <div style={{display:'flex',gap:6,marginBottom:6}}>
+                  <span style={{fontSize:11,color:'#666',width:42}}>备注</span>
+                  <input type="text" value={priceAdjust.note} onChange={e => setPriceAdjust({...priceAdjust, note: e.target.value})} placeholder="调价原因（可选）" style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} />
+                </div>
+                <div style={{display:'flex',gap:6}}>
+                  <button onClick={handleAddPriceHistory} style={{padding:'4px 16px',fontSize:11,border:'none',background:'#ea580c',color:'#fff',borderRadius:6,cursor:'pointer'}}>保存调价</button>
+                  <button onClick={() => { setShowPriceForm(false); setPriceAdjust({newPrice:'',date:'',note:''}); }} style={{padding:'4px 12px',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:6,cursor:'pointer'}}>取消</button>
+                </div>
+              </div>
+            )}
+            {(!detailProduct.price_history || detailProduct.price_history.length === 0) ? (
+              <div style={{fontSize:11,color:'#999'}}>暂无调价记录</div>
+            ) : (
+              <div style={{maxHeight:160,overflow:'auto'}}>
+                {detailProduct.price_history.map((h: any, i: number) => (
+                  <div key={h.id || i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',borderBottom:'1px solid #f5f5f5',fontSize:11}}>
+                    <span style={{color:'#999',whiteSpace:'nowrap'}}>{h.effective_date}</span>
+                    <span style={{color:'#666',textDecoration:'line-through',marginRight:2}}>¥{h.old_price}</span>
+                    <span style={{color:'#ea580c',fontWeight:600}}>→ ¥{h.new_price}</span>
+                    {h.note && <span style={{color:'#999',marginLeft:4}}>({h.note})</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div style={{background:'#f8f9fa',borderRadius:8,padding:'12px 16px',marginBottom:12}}>
             <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:6}}>📝 备注</div>
             {detailEditing ? (
@@ -865,7 +938,7 @@ function App() {
           </div>
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:8,padding:'12px 20px',borderTop:'1px solid #e5e7eb',background:'#f8f9fa'}}>
-          <button onClick={() => { setShowDetail(false); setDetailEditing(false); }} style={{padding:'6px 16px',fontSize:13,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:6,cursor:'pointer'}}>关闭</button>
+          <button onClick={() => { setShowDetail(false); setDetailEditing(false); setShowPriceForm(false); setPriceAdjust({newPrice:'',date:'',note:''}); }} style={{padding:'6px 16px',fontSize:13,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:6,cursor:'pointer'}}>关闭</button>
           {detailEditing ? (
             <><button onClick={handleDetailSave} style={{padding:'6px 16px',fontSize:13,border:'none',background:'#22c55e',color:'#fff',borderRadius:6,cursor:'pointer'}}>💾 保存修改</button>
             <button onClick={() => setDetailEditing(false)} style={{padding:'6px 16px',fontSize:13,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:6,cursor:'pointer'}}>取消</button></>
