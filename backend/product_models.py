@@ -35,9 +35,11 @@ class Product(Base):
     remarks = Column(Text, default='')
 
     # 分销商报价（直接存商品表，普通文本属性）
+    dist1_name = Column(String(100), default='')
     dist1_base_price = Column(String(50), default='')
     dist1_shipping_fee = Column(String(50), default='')
     dist1_remarks = Column(String(200), default='')
+    dist2_name = Column(String(100), default='')
     dist2_base_price = Column(String(50), default='')
     dist2_shipping_fee = Column(String(50), default='')
     dist2_remarks = Column(String(200), default='')
@@ -111,7 +113,7 @@ def init_db():
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        for col in ['dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
+        for col in ['dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
             try:
                 c.execute(f'ALTER TABLE products ADD COLUMN {col} VARCHAR(200) DEFAULT ""')
             except:

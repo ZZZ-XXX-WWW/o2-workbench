@@ -35,9 +35,11 @@ class ProductCreate(BaseModel):
     address: str = ''
     manufacturer_link: str = ''
     remarks: str = ''
+    dist1_name: str = ''
     dist1_base_price: str = ''
     dist1_shipping_fee: str = ''
     dist1_remarks: str = ''
+    dist2_name: str = ''
     dist2_base_price: str = ''
     dist2_shipping_fee: str = ''
     dist2_remarks: str = ''
@@ -87,9 +89,11 @@ def product_to_dict(p: Product) -> dict:
         'address': p.address,
         'manufacturer_link': p.manufacturer_link,
         'remarks': p.remarks,
+        'dist1_name': p.dist1_name or '',
         'dist1_base_price': p.dist1_base_price or '',
         'dist1_shipping_fee': p.dist1_shipping_fee or '',
         'dist1_remarks': p.dist1_remarks or '',
+        'dist2_name': p.dist2_name or '',
         'dist2_base_price': p.dist2_base_price or '',
         'dist2_shipping_fee': p.dist2_shipping_fee or '',
         'dist2_remarks': p.dist2_remarks or '',
@@ -217,9 +221,11 @@ async def upload_product(
     address: str = Form(''),
     manufacturer_link: str = Form(''),
     remarks: str = Form(''),
+    dist1_name: str = Form(''),
     dist1_base_price: str = Form(''),
     dist1_shipping_fee: str = Form(''),
     dist1_remarks: str = Form(''),
+    dist2_name: str = Form(''),
     dist2_base_price: str = Form(''),
     dist2_shipping_fee: str = Form(''),
     dist2_remarks: str = Form(''),
@@ -258,9 +264,11 @@ async def upload_product(
             address=address,
             manufacturer_link=manufacturer_link,
             remarks=remarks,
+            dist1_name=dist1_name,
             dist1_base_price=dist1_base_price,
             dist1_shipping_fee=dist1_shipping_fee,
             dist1_remarks=dist1_remarks,
+            dist2_name=dist2_name,
             dist2_base_price=dist2_base_price,
             dist2_shipping_fee=dist2_shipping_fee,
             dist2_remarks=dist2_remarks,
