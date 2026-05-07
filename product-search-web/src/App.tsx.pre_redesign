@@ -1,0 +1,601 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, Search, FolderOpen, Plus, Settings, ImageIcon, Palette, ChevronDown, ChevronUp, X, Pencil, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ThemeDropdown } from './components/ThemeDropdown';
+
+const API = '';  // Same origin (Vite proxy -> :8527)
+
+type ThemeStyle = 'glass' | 'warm' | 'tech' | 'forest' | 'ocean' | 'rose' | 'midnight' | 'coffee' | 'mint' | 'lavender' | 'sunset' | 'cherry' | 'arctic';
+
+interface Product {
+  id: string;
+  image: string;
+  date: string;
+  factory: string;
+  address: string;
+  link: string;
+  cost: string;
+  note: string;
+  model?: string;
+  shipping?: string;
+  color?: string;
+  size?: string;
+  score?: number;
+}
+
+const themes: Record<ThemeStyle, { name: string; icon: string; desc: string }> = {
+  glass: { name: '现代玻璃', icon: '🔍', desc: '毛玻璃效果' },
+  warm: { name: '温暖奶油', icon: '🌅', desc: '柔和暖色' },
+  tech: { name: '科技深色', icon: '💻', desc: '赛博风格' },
+  forest: { name: '森林自然', icon: '🌲', desc: '清新绿色' },
+  ocean: { name: '海洋深蓝', icon: '🌊', desc: '深邃蓝色' },
+  rose: { name: '玫瑰粉金', icon: '🌹', desc: '浪漫粉色' },
+  midnight: { name: '午夜紫黑', icon: '🌙', desc: '神秘暗紫' },
+  coffee: { name: '咖啡摩卡', icon: '☕', desc: '温暖棕色' },
+  mint: { name: '薄荷清凉', icon: '🍃', desc: '清新薄荷' },
+  lavender: { name: '薰衣草紫', icon: '💜', desc: '优雅淡紫' },
+  sunset: { name: '日落橙红', icon: '🌇', desc: '热情渐变' },
+  cherry: { name: '樱桃红粉', icon: '🍒', desc: '甜美红色' },
+  arctic: { name: '北极冰川', icon: '❄️', desc: '冷冽青白' }
+};
+
+function App() {
+  const [currentTheme, setCurrentTheme] = useState<ThemeStyle>('glass');
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchImage, setSearchImage] = useState<string | null>(null);
+  const [searchFile, setSearchFile] = useState<File | null>(null);
+  const [uploadImage, setUploadImage] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [rerank, setRerank] = useState(false);
+  const [returnCount, setReturnCount] = useState(10);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [manageProducts, setManageProducts] = useState<Product[]>([]);
+  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '' });
+  const [showMoreFields, setShowMoreFields] = useState(false);
+  const [showManageDb, setShowManageDb] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ factory: '', model: '', cost: '', shipping: '', color: '', size: '', note: '' });
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const themeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const getThemeClasses = () => {
+    switch (currentTheme) {
+      case 'warm':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50',
+          header: 'bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-orange-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-orange-100 p-4',
+          uploadZone: 'border-2 border-dashed border-orange-200 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-orange-50/50 hover:bg-orange-100/50 hover:border-orange-400 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-orange-200 rounded focus:outline-none focus:border-orange-400',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'tech':
+        return {
+          bg: 'min-h-screen bg-slate-950',
+          header: 'bg-slate-900 border-b border-cyan-500/30 text-cyan-400 px-4 py-3 flex items-center justify-between shadow-lg shadow-cyan-500/10',
+          card: 'w-72 bg-slate-900/80 border border-cyan-500/30 rounded-lg p-4 shadow-sm',
+          cardRight: 'flex-1 bg-slate-900/80 border border-cyan-500/30 rounded-lg p-4 shadow-sm',
+          uploadZone: 'border-2 border-dashed border-cyan-500/40 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-slate-800/50 hover:border-cyan-400 hover:bg-cyan-950/30 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-slate-800 border border-cyan-500/30 rounded text-cyan-100 focus:outline-none focus:border-cyan-400',
+          btnGreen: 'w-full py-2 bg-cyan-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-cyan-500',
+          btnPurple: 'w-full py-2 bg-violet-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-violet-500',
+          btnBlue: 'flex-1 py-2 bg-cyan-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-cyan-500',
+          btnOrange: 'flex-1 py-2 bg-fuchsia-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-fuchsia-500'
+        };
+      case 'forest':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50',
+          header: 'bg-emerald-700 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-emerald-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-emerald-100 p-4',
+          uploadZone: 'border-2 border-dashed border-emerald-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-emerald-50/50 hover:bg-emerald-100/50 hover:border-emerald-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-emerald-200 rounded focus:outline-none focus:border-emerald-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'ocean':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50',
+          header: 'bg-blue-700 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-blue-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-blue-100 p-4',
+          uploadZone: 'border-2 border-dashed border-blue-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-blue-50/50 hover:bg-blue-100/50 hover:border-blue-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-blue-200 rounded focus:outline-none focus:border-blue-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-cyan-500 to-sky-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'rose':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50',
+          header: 'bg-rose-600 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-rose-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-rose-100 p-4',
+          uploadZone: 'border-2 border-dashed border-rose-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-rose-50/50 hover:bg-rose-100/50 hover:border-rose-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-rose-200 rounded focus:outline-none focus:border-rose-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-fuchsia-500 to-rose-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-rose-400 to-pink-400 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'midnight':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-950',
+          header: 'bg-slate-950 border-b border-purple-500/30 text-purple-300 px-4 py-3 flex items-center justify-between shadow-lg shadow-purple-500/10',
+          card: 'w-72 bg-slate-900/90 border border-purple-500/30 rounded-lg p-4 shadow-sm',
+          cardRight: 'flex-1 bg-slate-900/90 border border-purple-500/30 rounded-lg p-4 shadow-sm',
+          uploadZone: 'border-2 border-dashed border-purple-500/40 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-slate-800/50 hover:border-purple-400 hover:bg-purple-950/30 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-slate-800 border border-purple-500/30 rounded text-purple-100 focus:outline-none focus:border-purple-400',
+          btnGreen: 'w-full py-2 bg-purple-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-purple-500',
+          btnPurple: 'w-full py-2 bg-indigo-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-indigo-500',
+          btnBlue: 'flex-1 py-2 bg-purple-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-purple-500',
+          btnOrange: 'flex-1 py-2 bg-fuchsia-600 text-white rounded-md text-sm font-medium shadow-sm hover:bg-fuchsia-500'
+        };
+      case 'coffee':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-50',
+          header: 'bg-amber-800 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-amber-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-amber-100 p-4',
+          uploadZone: 'border-2 border-dashed border-amber-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-amber-50/50 hover:bg-amber-100/50 hover:border-amber-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-amber-200 rounded focus:outline-none focus:border-amber-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-stone-500 to-amber-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'mint':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-emerald-50',
+          header: 'bg-teal-600 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-teal-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-teal-100 p-4',
+          uploadZone: 'border-2 border-dashed border-teal-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-teal-50/50 hover:bg-teal-100/50 hover:border-teal-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-teal-200 rounded focus:outline-none focus:border-teal-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'lavender':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50',
+          header: 'bg-violet-600 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-violet-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-violet-100 p-4',
+          uploadZone: 'border-2 border-dashed border-violet-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-violet-50/50 hover:bg-violet-100/50 hover:border-violet-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-violet-200 rounded focus:outline-none focus:border-violet-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-purple-500 to-violet-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'sunset':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50',
+          header: 'bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-orange-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-orange-100 p-4',
+          uploadZone: 'border-2 border-dashed border-orange-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-orange-50/50 hover:bg-orange-100/50 hover:border-orange-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-orange-200 rounded focus:outline-none focus:border-orange-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-amber-500 to-red-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'cherry':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-red-50',
+          header: 'bg-rose-700 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-rose-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-rose-100 p-4',
+          uploadZone: 'border-2 border-dashed border-rose-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-rose-50/50 hover:bg-rose-100/50 hover:border-rose-500 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-rose-200 rounded focus:outline-none focus:border-rose-500',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-rose-500 to-red-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      case 'arctic':
+        return {
+          bg: 'min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-sky-50',
+          header: 'bg-slate-700 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-slate-100 p-4',
+          cardRight: 'flex-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-slate-100 p-4',
+          uploadZone: 'border-2 border-dashed border-slate-300 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-cyan-50/50 hover:border-cyan-400 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white/70 border border-slate-200 rounded focus:outline-none focus:border-cyan-400',
+          btnGreen: 'w-full py-2 bg-gradient-to-r from-cyan-600 to-sky-600 text-white rounded-md text-sm font-medium shadow-sm',
+          btnPurple: 'w-full py-2 bg-gradient-to-r from-slate-500 to-cyan-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnBlue: 'flex-1 py-2 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-md text-sm font-medium shadow-sm',
+          btnOrange: 'flex-1 py-2 bg-gradient-to-r from-cyan-500 to-sky-500 text-white rounded-md text-sm font-medium shadow-sm'
+        };
+      default:
+        return {
+          bg: 'min-h-screen bg-[#f5f7fa]',
+          header: 'bg-gradient-to-r from-sky-400 to-teal-400 text-white px-4 py-3 flex items-center justify-between shadow-lg',
+          card: 'w-72 bg-white rounded-lg shadow-sm border border-gray-100 p-4',
+          cardRight: 'flex-1 bg-white rounded-lg shadow-sm border border-gray-100 p-4',
+          uploadZone: 'border-2 border-dashed border-gray-200 rounded-lg h-24 flex flex-col items-center justify-center cursor-pointer bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-all',
+          input: 'flex-1 px-2 py-1.5 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
+          btnGreen: 'w-full py-2 bg-[#1677ff] text-white rounded-md text-sm font-medium hover:bg-[#4096ff] transition-colors',
+          btnPurple: 'w-full py-2 bg-[#722ed1] text-white rounded-md text-sm font-medium hover:bg-[#9254de] transition-colors',
+          btnBlue: 'flex-1 py-2 bg-[#1677ff] text-white rounded-md text-sm font-medium hover:bg-[#4096ff] transition-colors',
+          btnOrange: 'flex-1 py-2 bg-[#fa8c16] text-white rounded-md text-sm font-medium hover:bg-[#ffa940] transition-colors'
+        };
+    }
+  };
+
+  const theme = getThemeClasses();
+
+  const handleSearchImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSearchFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => setSearchImage(event.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => setUploadImage(event.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (!uploadImage || !uploadFile) return;
+    const form = new FormData();
+    form.append('file', uploadFile);
+    Object.entries(formData).forEach(([k, v]) => form.append(k, v));
+    try {
+      const res = await fetch(`${API}/api/products/upload`, { method: 'POST', body: form });
+      const d = await res.json();
+      if (d.ok) {
+        const p = d.product;
+        const newProduct: Product = {
+          id: p.id, image: `${API}/api/products/image/${p.id}`,
+          date: p.inquiry_date || '', factory: p.manufacturer_name || '', model: p.manufacturer_code,
+          address: p.address || '', link: p.manufacturer_link || '',
+          cost: String(p.cost_price || ''), note: p.remarks || '',
+          shipping: String(p.shipping_fee || ''), color: p.color, size: p.size,
+        };
+        setProducts(prev => [...prev, newProduct]);
+        setUploadImage(null); setUploadFile(null);
+        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '' });
+        if (uploadInputRef.current) uploadInputRef.current.value = '';
+        loadProducts();
+      }
+    } catch (e) {
+      console.error('Add failed:', e);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchImage || !searchFile) return;
+    setIsSearching(true);
+    const form = new FormData();
+    form.append('file', searchFile);
+    form.append('top_k', String(returnCount));
+    try {
+      const res = await fetch(`${API}/api/products/search`, { method: 'POST', body: form });
+      const d = await res.json();
+      const items = (d.results || []).map((p: any) => ({
+        id: p.id, image: `${API}/api/products/image/${p.id}`,
+        date: p.inquiry_date || '', factory: p.manufacturer_name || '',
+        model: p.manufacturer_code, address: p.address || '',
+        link: p.manufacturer_link || '', cost: String(p.cost_price || ''),
+        note: p.remarks || '', shipping: String(p.shipping_fee || ''),
+        color: p.color, size: p.size, score: p.score,
+      }));
+      setSearchResults(items);
+    } catch (e) {
+      console.error('Search failed:', e);
+    }
+    setIsSearching(false);
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await fetch(`${API}/api/products/list?page_size=500`);
+      const d = await res.json();
+      const items = (d.products || []).map((p: any) => ({
+        id: p.id, image: `${API}/api/products/image/${p.id}`,
+        date: p.inquiry_date || '', factory: p.manufacturer_name || '', model: p.manufacturer_code,
+        address: p.address || '', link: p.manufacturer_link || '',
+        cost: String(p.cost_price || ''), note: p.remarks || '',
+        shipping: String(p.shipping_fee || ''), color: p.color, size: p.size,
+      }));
+      setProducts(items);
+    } catch (e) {
+      console.error('Load failed:', e);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!window.confirm('确定删除此商品？')) return;
+    try {
+      await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (e) {
+      console.error('Delete failed:', e);
+    }
+  };
+
+  const handleEditProduct = (p: Product) => {
+    setEditingId(p.id);
+    setEditForm({
+      factory: p.factory || '',
+      model: p.model || '',
+      cost: p.cost || '',
+      shipping: p.shipping || '',
+      color: p.color || '',
+      size: p.size || '',
+      note: p.note || '',
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    try {
+      const body = {
+        manufacturer_name: editForm.factory,
+        manufacturer_code: editForm.model,
+        cost_price: parseFloat(editForm.cost) || 0,
+        shipping_fee: parseFloat(editForm.shipping) || 0,
+        color: editForm.color,
+        size: editForm.size,
+        remarks: editForm.note,
+      };
+      await fetch(`${API}/api/products/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      setEditingId(null);
+      loadProducts();
+    } catch (e) {
+      console.error('Save failed:', e);
+    }
+  };
+
+  useEffect(() => { loadProducts(); }, []);
+
+  const textColor = currentTheme === 'tech' ? 'text-cyan-100' : 'text-slate-800';
+  const textSecondary = currentTheme === 'tech' ? 'text-cyan-300/70' : 'text-slate-500';
+  const textMuted = currentTheme === 'tech' ? 'text-cyan-400/50' : 'text-slate-400';
+
+  return (
+    <>
+    <div className={theme.bg}>
+      <div className={`${theme.header}`} style={{ position: 'relative', zIndex: 100 }}>
+        <motion.div className="flex items-center gap-3" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <div className={`p-2 rounded-xl ${currentTheme === 'tech' ? 'bg-cyan-500/20' : 'bg-white/20'}`}>
+            <FolderOpen className="w-5 h-5" />
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight">商品图片同款搜索</h1>
+        </motion.div>
+        <div className="flex items-center gap-4">
+          <motion.div className={`flex items-center gap-2 text-sm px-4 py-2 rounded-full ${currentTheme === 'tech' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/10'}`}>
+            <FolderOpen className="w-4 h-4" />
+            <span>{products.length} 件商品</span>
+          </motion.div>
+          <div>
+            <button ref={themeButtonRef} onClick={() => setShowThemeMenu(!showThemeMenu)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${currentTheme === 'tech' ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400' : 'bg-white/10 hover:bg-white/20'}`}>
+              <Palette className="w-4 h-4" />
+              <span className="text-sm">{themes[currentTheme].name}</span>
+            </button>
+            <ThemeDropdown
+              currentTheme={currentTheme}
+              show={showThemeMenu}
+              onClose={() => setShowThemeMenu(false)}
+              onSelect={(t) => { setCurrentTheme(t); setShowThemeMenu(false); }}
+              buttonRef={themeButtonRef}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 flex gap-4 max-w-6xl mx-auto">
+        <div className={`${theme.card} relative`}>
+          <div className={`flex items-center gap-2 mb-3 font-semibold ${textColor}`}>
+            <div className={`p-1 rounded ${currentTheme === 'tech' ? 'bg-cyan-500/20' : 'bg-indigo-100'}`}>
+              <Upload className={`w-3 h-3 ${currentTheme === 'tech' ? 'text-cyan-400' : 'text-indigo-600'}`} />
+            </div>
+            <span className="text-sm">录入商品</span>
+          </div>
+
+          <div className={theme.uploadZone} onClick={() => uploadInputRef.current?.click()}>
+            {uploadImage ? (
+              <img src={uploadImage} alt="preview" className="w-full h-full object-contain rounded p-1" />
+            ) : (
+              <>
+                <div className={`p-2 rounded-lg mb-1 ${currentTheme === 'tech' ? 'bg-cyan-500/20' : 'bg-indigo-100/50'}`}>
+                  <ImageIcon className={`w-5 h-5 ${currentTheme === 'tech' ? 'text-cyan-400' : 'text-indigo-400'}`} />
+                </div>
+                <span className={`text-xs font-medium ${textSecondary}`}>点击选择图片</span>
+              </>
+            )}
+          </div>
+          <input ref={uploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleUploadImageSelect} />
+
+          <div className="space-y-2 my-3">
+            {[{ key: 'date', label: '咨询日期' }, { key: 'factory', label: '厂家名称' }, { key: 'model', label: '型号代码' }].map(({ key, label }) => (
+              <div key={key} className="flex items-center gap-2">
+                <span className={`text-xs w-14 font-medium ${textSecondary}`}>{label}</span>
+                <input type="text" value={formData[key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} className={theme.input} />
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <span className={`text-xs w-14 font-medium ${textSecondary}`}>备注</span>
+              <input type="text" value={formData.note} onChange={(e) => setFormData({ ...formData, note: e.target.value })} className={theme.input} />
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowMoreFields(!showMoreFields)}
+            className={`w-full flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded transition-colors ${
+              currentTheme === 'tech' ? 'text-cyan-400 hover:bg-cyan-500/10' :
+              'text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            {showMoreFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {showMoreFields ? '收起更多' : '展开更多'}
+          </button>
+
+          <button className={`w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded text-xs font-medium mb-2 mt-3 ${currentTheme === 'tech' ? 'bg-slate-800 text-cyan-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            <Plus className="w-3 h-3" />插入图片
+          </button>
+
+          <div className={`border rounded-lg h-16 mb-2 ${currentTheme === 'tech' ? 'border-cyan-500/20 bg-slate-800/50' : 'border-slate-200 bg-slate-50/50'}`}></div>
+
+          <div className={`text-xs mb-2 font-medium ${textSecondary}`}>数据库共 {products.length} 件商品</div>
+
+          <button onClick={handleAddProduct} disabled={!uploadImage} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
+          <button onClick={() => setShowManageDb(true)} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs`}><Settings className="w-3 h-3" />管理数据库</button>
+
+          {showMoreFields && (
+            <div className="absolute left-full top-0 h-full z-50 ml-4 w-80">
+              <div className={`w-full h-full flex flex-col ${theme.card}`}>
+                <div className={`flex items-center gap-2 mb-3 font-semibold ${textColor}`}>
+                  <span className="text-sm">更多字段</span>
+                </div>
+                <div className="space-y-2 flex-1">
+                  {[{ key: 'address', label: '地址' }, { key: 'link', label: '厂家链接' }, { key: 'cost', label: '成本' }, { key: 'shipping', label: '运费' }, { key: 'color', label: '颜色' }, { key: 'size', label: '尺码' }].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className={`text-xs w-14 font-medium ${textSecondary}`}>{label}</span>
+                      <input type="text" value={formData[key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} className={theme.input} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className={`${theme.cardRight}`}>
+          <div className={`flex items-center gap-2 mb-3 font-semibold ${textColor}`}>
+            <div className={`p-1 rounded ${currentTheme === 'tech' ? 'bg-fuchsia-500/20' : 'bg-orange-100'}`}>
+              <Search className={`w-3 h-3 ${currentTheme === 'tech' ? 'text-fuchsia-400' : 'text-orange-600'}`} />
+            </div>
+            <span className="text-sm">搜索同款</span>
+          </div>
+
+          <div className="flex gap-4">
+            <div className={`w-40 ${theme.uploadZone}`} onClick={() => searchInputRef.current?.click()}>
+              {searchImage ? (
+                <img src={searchImage} alt="search" className="w-full h-full object-contain rounded p-1" />
+              ) : (
+                <>
+                  <div className={`p-2 rounded-lg mb-1 ${currentTheme === 'tech' ? 'bg-fuchsia-500/20' : 'bg-orange-100/50'}`}>
+                    <ImageIcon className={`w-5 h-5 ${currentTheme === 'tech' ? 'text-fuchsia-400' : 'text-orange-400'}`} />
+                  </div>
+                  <span className={`text-xs font-medium ${textSecondary}`}>点击选择</span>
+                  <span className={`text-xs ${textMuted}`}>搜索图片</span>
+                </>
+              )}
+            </div>
+            <input ref={searchInputRef} type="file" accept="image/*" className="hidden" onChange={handleSearchImageSelect} />
+
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-3">
+                <label className={`flex items-center gap-1 text-xs cursor-pointer ${textSecondary}`}>
+                  <input type="checkbox" checked={rerank} onChange={(e) => setRerank(e.target.checked)} className="w-3 h-3 rounded" />
+                  <span className="font-medium">精排(Rerank)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${textSecondary}`}>返回:</span>
+                  <input type="number" value={returnCount} onChange={(e) => setReturnCount(Number(e.target.value))} className={`w-16 px-2 py-1 text-xs rounded ${theme.input}`} />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => searchInputRef.current?.click()} className={`${theme.btnBlue} flex items-center justify-center gap-1 text-xs`}><Upload className="w-3 h-3" />选择图片</button>
+                <button onClick={handleSearch} disabled={!searchImage || isSearching} className={`${theme.btnOrange} flex items-center justify-center gap-1 text-xs disabled:opacity-50`}><Search className="w-3 h-3" />{isSearching ? '搜索中...' : '开始搜索'}</button>
+              </div>
+            </div>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="mt-4">
+              <h3 className={`text-sm font-semibold mb-2 ${textColor}`}>搜索结果</h3>
+              <div className="grid grid-cols-5 gap-2">
+                {searchResults.map((product, idx) => (
+                  <motion.div key={product.id} className={`border rounded-lg p-2 cursor-pointer transition-all ${currentTheme === 'tech' ? 'border-cyan-500/30 bg-slate-800/50 hover:border-cyan-400' : 'border-slate-200/70 hover:shadow-md'}`} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.05 }} whileHover={{ scale: 1.02 }}>
+                    <img src={product.image} alt="result" className={`w-full h-16 object-contain mb-1 rounded ${currentTheme === 'tech' ? 'bg-slate-800' : 'bg-slate-50'}`} />
+                    <div className={`text-xs truncate font-medium ${textColor}`}>{product.factory}</div>
+                    <div className={`text-xs ${textSecondary}`}>{product.cost}</div>
+                    {product.score && <div className={`text-xs text-green-500`}>{(product.score*100).toFixed(0)}%</div>}
+                  </motion.div>
+                ))}
+
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+  {showManageDb && (
+    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{position:'relative',width:'80%',height:'85vh',background:'#fff',borderRadius:12,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',borderBottom:'1px solid #e5e7eb'}}>
+          <h2 style={{margin:0,fontSize:16,fontWeight:600,color:'#1a1a1a'}}>管理数据库</h2>
+          <button onClick={() => setShowManageDb(false)} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X className="w-5 h-5" style={{color:'#6b7280'}} /></button>
+        </div>
+        <div style={{flex:1,overflow:'auto',padding:16}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:12}}>
+            {products.map((p) => (
+              <div key={p.id} style={{border:'1px solid #e5e7eb',borderRadius:8,padding:10,background:editingId === p.id ? '#f0f9ff' : '#fafafa'}}>
+                <img src={p.image} alt="" style={{width:'100%',height:80,objectFit:'contain',background:'#f3f4f6',borderRadius:4,marginBottom:8}} />
+                {editingId === p.id ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    <input value={editForm.factory} onChange={e => setEditForm({...editForm, factory: e.target.value})} placeholder="厂家" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <input value={editForm.model} onChange={e => setEditForm({...editForm, model: e.target.value})} placeholder="型号" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <input value={editForm.cost} onChange={e => setEditForm({...editForm, cost: e.target.value})} placeholder="成本" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <input value={editForm.shipping} onChange={e => setEditForm({...editForm, shipping: e.target.value})} placeholder="运费" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <input value={editForm.color} onChange={e => setEditForm({...editForm, color: e.target.value})} placeholder="颜色" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <input value={editForm.size} onChange={e => setEditForm({...editForm, size: e.target.value})} placeholder="尺码" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <input value={editForm.note} onChange={e => setEditForm({...editForm, note: e.target.value})} placeholder="备注" style={{fontSize:11,padding:'2px 4px',border:'1px solid #d1d5db',borderRadius:3}} />
+                    <div style={{display:'flex',gap:4,marginTop:4}}>
+                      <button onClick={handleSaveEdit} style={{flex:1,padding:'3px 0',fontSize:11,border:'none',background:'#3b82f6',color:'#fff',borderRadius:4,cursor:'pointer'}}>保存</button>
+                      <button onClick={() => setEditingId(null)} style={{flex:1,padding:'3px 0',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:4,cursor:'pointer'}}>取消</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{fontSize:12,fontWeight:500,color:'#1a1a1a',marginBottom:4}}>{p.factory || '(无厂家)'}</div>
+                    <div style={{fontSize:11,color:'#6b7280',marginBottom:4}}>{p.model || ''}</div>
+                    <div style={{fontSize:11,color:'#6b7280',marginBottom:4}}>成本: {p.cost || '-'}</div>
+                    <div style={{display:'flex',gap:6}}>
+                      <button onClick={() => handleEditProduct(p)} style={{flex:1,padding:'4px 0',fontSize:11,border:'1px solid #3b82f6',background:'#eff6ff',color:'#3b82f6',borderRadius:4,cursor:'pointer'}}><Pencil className="w-3 h-3" style={{display:'inline',marginRight:2}} />编辑</button>
+                      <button onClick={() => handleDeleteProduct(p.id)} style={{flex:1,padding:'4px 0',fontSize:11,border:'1px solid #ef4444',background:'#fef2f2',color:'#ef4444',borderRadius:4,cursor:'pointer'}}><Trash2 className="w-3 h-3" style={{display:'inline',marginRight:2}} />删除</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+  </>
+  );
+}
+
+export default App;

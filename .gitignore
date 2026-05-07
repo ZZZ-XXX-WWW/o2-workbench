@@ -1,0 +1,59 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# O2OA server (large binary runtime)
+o2server/jvm/
+o2server/commons/
+o2server/servers/
+o2server/logs/
+o2server/local/
+o2server/config/
+o2server/configSample/
+o2server/dynamic/
+o2server/custom/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.npy
+
+# SQLite databases (regenerated on startup)
+*.db
+
+# Product search desktop - images & data
+product_search/data/import_*.png
+product_search/images/
+product_search/backup/
+product_search/dist/
+product_search/build/
+product_search/*.spec
+
+# Build artifacts (can be rebuilt from source)
+public/product-search/
+public/hexiao-new/
+
+# Large data files
+对账单5.4.xlsx

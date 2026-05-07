@@ -1,0 +1,7 @@
+torch
+torchvision
+Pillow
+numpy
+dashscope
+pywin32
+tkinterdnd2

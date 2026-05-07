@@ -1,0 +1,130 @@
+/* ========= 全局样式 ========= */
+
+* {
+  box-sizing: border-box;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Element Plus 卡片覆盖 */
+.el-card {
+  border-radius: 10px;
+  border: 1px solid rgba(232, 232, 232, 0.5);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.el-card__header {
+  border-bottom: 1px solid rgba(240, 240, 240, 0.5);
+  padding: 16px 20px;
+}
+
+/* ========= 背景切换器 ========= */
+.bg-picker {
+  padding: 12px !important;
+  border-radius: 12px !important;
+}
+
+.bg-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.bg-option {
+  cursor: pointer;
+  text-align: center;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.bg-option:hover {
+  background: #f5f7fa;
+}
+
+.bg-option.active {
+  border-color: #1a7cf7;
+  background: #f0f5ff;
+}
+
+.bg-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 6px;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 4px;
+  border: 1px solid #e8e8e8;
+}
+
+.bg-name {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 按钮主题色 */
+.el-button--primary {
+  --el-button-bg-color: #1a7cf7;
+  --el-button-border-color: #1a7cf7;
+  --el-button-hover-bg-color: #1666d4;
+  --el-button-hover-border-color: #1666d4;
+}
+
+/* 表格 */
+.el-table {
+  border-radius: 8px;
+  --el-table-border-color: rgba(232, 232, 232, 0.5);
+}
+
+.el-table th.el-table__cell {
+  background: rgba(250, 250, 250, 0.7);
+  color: #666;
+  font-weight: 500;
+}
+
+/* 输入框 */
+.el-input__wrapper {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08) inset;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(26, 124, 247, 0.3) inset;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #1a7cf7 inset;
+}
+
+/* 页面通用 */
+.page-placeholder {
+  max-width: 1200px;
+}
+
+.page-placeholder .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 500;
+}
