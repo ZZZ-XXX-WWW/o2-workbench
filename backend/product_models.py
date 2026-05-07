@@ -89,6 +89,55 @@ class DistributorPrice(Base):
     product = relationship("Product", back_populates="distributor_prices")
 
 
+class PriceChangeLog(Base):
+    """通用价格变动日志（成本、运费、分销商价格等）"""
+    __tablename__ = 'price_change_logs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    product_id = Column(String(64), ForeignKey('products.id'), nullable=False)
+    product_name = Column(String(200), default='')
+    field_name = Column(String(50), nullable=False)
+    field_label = Column(String(100), default='')
+    old_value = Column(String(50), default='')
+    new_value = Column(String(50), default='')
+    effective_date = Column(String(20), default='')
+    note = Column(Text, default='')
+    created_at = Column(DateTime, default=datetime.now)
+
+    product = relationship("Product")
+
+
+FIELD_LABELS = {
+    'cost_price': '成本价',
+    'shipping_fee': '运费',
+    'dist1_name': '分销商1名称',
+    'dist1_base_price': '分销商1价格',
+    'dist1_shipping_fee': '分销商1运费',
+    'dist2_name': '分销商2名称',
+    'dist2_base_price': '分销商2价格',
+    'dist2_shipping_fee': '分销商2运费',
+}
+
+
+def log_price_change(db, product_id: str, field_name: str, old_value, new_value,
+                      effective_date: str = '', note: str = ''):
+    """记录价格变动"""
+    if str(old_value) == str(new_value):
+        return
+    product = db.query(Product).filter(Product.id == product_id).first()
+    log = PriceChangeLog(
+        product_id=product_id,
+        product_name=product.name if product else '',
+        field_name=field_name,
+        field_label=FIELD_LABELS.get(field_name, field_name),
+        old_value=str(old_value) if old_value is not None else '',
+        new_value=str(new_value) if new_value is not None else '',
+        effective_date=effective_date,
+        note=note,
+    )
+    db.add(log)
+
+
 class FactoryProduct(Base):
     """工厂端上传产品"""
     __tablename__ = 'factory_products'

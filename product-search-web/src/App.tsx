@@ -373,6 +373,28 @@ function App() {
   const [detailForm, setDetailForm] = useState<any>({});
   const [priceAdjust, setPriceAdjust] = useState({ newPrice: '', date: '', note: '' });
   const [showPriceForm, setShowPriceForm] = useState(false);
+  const [showPriceChanges, setShowPriceChanges] = useState(false);
+  const [priceChanges, setPriceChanges] = useState<any[]>([]);
+  const [loadingPriceChanges, setLoadingPriceChanges] = useState(false);
+  const [priceChangesPage, setPriceChangesPage] = useState(1);
+  const [priceChangesTotal, setPriceChangesTotal] = useState(0);
+  const [priceChangesFilter, setPriceChangesFilter] = useState('');
+
+  const loadPriceChanges = async (page: number = 1) => {
+    setLoadingPriceChanges(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), page_size: '50' });
+      if (priceChangesFilter) params.set('field', priceChangesFilter);
+      const res = await fetch(`${API}/api/products/price-changes?${params}`);
+      const d = await res.json();
+      setPriceChanges(d.items || []);
+      setPriceChangesTotal(d.total || 0);
+      setPriceChangesPage(page);
+    } catch (e) {
+      console.error('Load price changes failed:', e);
+    }
+    setLoadingPriceChanges(false);
+  };
 
   const handleDetailEdit = () => {
     if (!detailProduct) return;
@@ -695,6 +717,7 @@ function App() {
 
           <button onClick={handleAddProduct} disabled={!uploadImage} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
           <button onClick={() => setShowManageDb(true)} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs mb-2`}><Settings className="w-3 h-3" />管理数据库</button>
+          <button onClick={() => { setShowPriceChanges(true); loadPriceChanges(1); }} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs`}><Settings className="w-3 h-3" />调价记录</button>
 
           {showMoreFields && (
             <div className="absolute left-full top-0 h-full z-50 ml-4" style={{width:550}}>
@@ -833,6 +856,68 @@ function App() {
     </div>
   )}
 
+  {showPriceChanges && (
+    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={() => setShowPriceChanges(false)}>
+      <div style={{position:'relative',width:'85%',maxHeight:'90vh',background:'#fff',borderRadius:12,overflow:'hidden',display:'flex',flexDirection:'column'}} onClick={e => e.stopPropagation()}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',borderBottom:'1px solid #e5e7eb',background:'#f8f9fa'}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <h2 style={{margin:0,fontSize:16,fontWeight:600,color:'#1a1a1a'}}>📈 调价记录</h2>
+            <span style={{fontSize:12,color:'#999'}}>共 {priceChangesTotal} 条记录</span>
+          </div>
+          <button onClick={() => setShowPriceChanges(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:22,color:'#999',padding:'0 8px',lineHeight:1}}>×</button>
+        </div>
+        <div style={{padding:'12px 20px',borderBottom:'1px solid #e5e7eb',display:'flex',gap:8,alignItems:'center',background:'#fff'}}>
+          <span style={{fontSize:12,color:'#666'}}>筛选:</span>
+          <select value={priceChangesFilter} onChange={e => { setPriceChangesFilter(e.target.value); setTimeout(() => loadPriceChanges(1), 0); }} style={{padding:'4px 8px',fontSize:12,border:'1px solid #d1d5db',borderRadius:6,outline:'none'}}>
+            <option value="">全部字段</option>
+            <option value="cost_price">成本价</option>
+            <option value="shipping_fee">运费</option>
+            <option value="dist1_base_price">分销商1价格</option>
+            <option value="dist1_shipping_fee">分销商1运费</option>
+            <option value="dist2_base_price">分销商2价格</option>
+            <option value="dist2_shipping_fee">分销商2运费</option>
+          </select>
+          {priceChangesPage > 1 && <button onClick={() => loadPriceChanges(priceChangesPage - 1)} style={{padding:'4px 12px',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:4,cursor:'pointer'}}>上一页</button>}
+          {priceChangesPage * 50 < priceChangesTotal && <button onClick={() => loadPriceChanges(priceChangesPage + 1)} style={{padding:'4px 12px',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:4,cursor:'pointer'}}>下一页</button>}
+          <span style={{fontSize:11,color:'#999'}}>第 {priceChangesPage} / {Math.max(1, Math.ceil(priceChangesTotal / 50))} 页</span>
+        </div>
+        <div style={{flex:1,overflow:'auto',scrollbarWidth:'none',padding:0}}>
+          {loadingPriceChanges ? (
+            <div style={{textAlign:'center',padding:40,fontSize:13,color:'#999'}}>加载中...</div>
+          ) : priceChanges.length === 0 ? (
+            <div style={{textAlign:'center',padding:40,fontSize:13,color:'#999'}}>暂无调价记录</div>
+          ) : (
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+              <thead>
+                <tr style={{background:'#f8f9fa',borderBottom:'2px solid #e5e7eb'}}>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>时间</th>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>商品</th>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>字段</th>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>旧值</th>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>新值</th>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>生效日期</th>
+                  <th style={{padding:'8px 12px',textAlign:'left',color:'#666',fontWeight:500}}>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                {priceChanges.map((log: any, i: number) => (
+                  <tr key={log.id || i} style={{borderBottom:'1px solid #f3f4f6'}}>
+                    <td style={{padding:'6px 12px',color:'#999',whiteSpace:'nowrap'}}>{(log.created_at || '').slice(0, 10)}</td>
+                    <td style={{padding:'6px 12px',color:'#1a1a1a',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{log.product_name}</td>
+                    <td style={{padding:'6px 12px',color:'#555'}}>{log.field_label}</td>
+                    <td style={{padding:'6px 12px',color:'#999',textDecoration:'line-through'}}>¥{log.old_value}</td>
+                    <td style={{padding:'6px 12px',color:'#ea580c',fontWeight:500}}>¥{log.new_value}</td>
+                    <td style={{padding:'6px 12px',color:'#999',whiteSpace:'nowrap'}}>{log.effective_date}</td>
+                    <td style={{padding:'6px 12px',color:'#999'}}>{log.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )}
   {showDetail && detailProduct && (
     <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={() => { if(!detailEditing) setShowDetail(false); }}>
       <div style={{position:'relative',width:'680px',maxHeight:'90vh',background:'#fff',borderRadius:12,overflow:'hidden',display:'flex',flexDirection:'column'}} onClick={e => e.stopPropagation()}>

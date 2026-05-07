@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import numpy as np
 
-from ..product_models import Product, PriceHistory, DistributorPrice, FactoryProduct, init_db, get_session
+from ..product_models import Product, PriceHistory, DistributorPrice, FactoryProduct, init_db, get_session, PriceChangeLog, log_price_change, FIELD_LABELS
 
 router = APIRouter(prefix='/api/products', tags=['商品图片搜索'])
 
@@ -391,8 +391,61 @@ def get_product_image(product_id: str):
         db.close()
 
 
-@router.get('/{product_id}')
+@router.get('/price-changes')
+def list_price_changes(page: int = 1, page_size: int = 50, product_id: str = '', field: str = ''):
+    """获取价格变动日志（支持分页/按商品过滤/按字段过滤）"""
+    db = get_session()
+    try:
+        query = db.query(PriceChangeLog).order_by(PriceChangeLog.created_at.desc())
+        if product_id:
+            query = query.filter(PriceChangeLog.product_id == product_id)
+        if field:
+            query = query.filter(PriceChangeLog.field_name == field)
+        total = query.count()
+        items = query.offset((page - 1) * page_size).limit(page_size).all()
+        return {
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'items': [{
+                'id': log.id, 'product_id': log.product_id, 'product_name': log.product_name,
+                'field_name': log.field_name, 'field_label': log.field_label,
+                'old_value': log.old_value, 'new_value': log.new_value,
+                'effective_date': log.effective_date, 'note': log.note,
+                'created_at': log.created_at.isoformat() if log.created_at else '',
+            } for log in items],
+        }
+    finally:
+        db.close()
 
+
+@router.get('/{product_id}/price-changes')
+def list_product_price_changes(product_id: str, page: int = 1, page_size: int = 50):
+    """获取单个商品的价格变动日志"""
+    db = get_session()
+    try:
+        query = db.query(PriceChangeLog).filter(
+            PriceChangeLog.product_id == product_id
+        ).order_by(PriceChangeLog.created_at.desc())
+        total = query.count()
+        items = query.offset((page - 1) * page_size).limit(page_size).all()
+        return {
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'items': [{
+                'id': log.id, 'product_id': log.product_id, 'product_name': log.product_name,
+                'field_name': log.field_name, 'field_label': log.field_label,
+                'old_value': log.old_value, 'new_value': log.new_value,
+                'effective_date': log.effective_date, 'note': log.note,
+                'created_at': log.created_at.isoformat() if log.created_at else '',
+            } for log in items],
+        }
+    finally:
+        db.close()
+
+
+@router.get('/{product_id}')
 def get_product(product_id: str):
     """商品详情"""
     db = get_session()
@@ -416,6 +469,10 @@ def update_product(product_id: str, data: ProductCreate):
         p = db.query(Product).filter(Product.id == product_id).first()
         if not p:
             raise HTTPException(404, '商品不存在')
+        tracked = ['cost_price','shipping_fee','dist1_name','dist1_base_price','dist1_shipping_fee','dist2_name','dist2_base_price','dist2_shipping_fee']
+        for k, v in data.model_dump().items():
+            if k in tracked and str(getattr(p, k, '')) != str(v):
+                log_price_change(db, product_id, k, getattr(p, k, ''), v)
         for k, v in data.model_dump().items():
             setattr(p, k, v)
         p.updated_at = datetime.now()
@@ -477,6 +534,7 @@ def list_price_history(product_id: str):
     return get_price_history(product_id)
 
 
+# ---- 通用价格变动日志 API ----
 @router.get('/{product_id}/effective-price')
 def effective_price(product_id: str, as_of_date: str = ''):
     """获取指定日期的生效成本价"""
