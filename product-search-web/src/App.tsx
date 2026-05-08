@@ -60,7 +60,7 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchStatus, setSearchStatus] = useState('');
   const [manageProducts, setManageProducts] = useState<Product[]>([]);
-  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', d1_name: '', d1_price: '', d1_ship: '', d1_note: '', d2_name: '', d2_price: '', d2_ship: '', d2_note: '' });
+  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', price: '', ship: '', note: '' }] });
   const [showMoreFields, setShowMoreFields] = useState(false);
   const [showManageDb, setShowManageDb] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
@@ -280,8 +280,7 @@ function App() {
       address: 'address', link: 'manufacturer_link',
       cost: 'cost_price', shipping: 'shipping_fee',
       color: 'color', size: 'size', note: 'remarks',
-      d1_name: 'dist1_name', d1_price: 'dist1_base_price', d1_ship: 'dist1_shipping_fee', d1_note: 'dist1_remarks',
-      d2_name: 'dist2_name', d2_price: 'dist2_base_price', d2_ship: 'dist2_shipping_fee', d2_note: 'dist2_remarks',
+
     };
     Object.entries(formData).forEach(([k, v]) => {
       form.append(fieldMap[k] || k, v);
@@ -304,7 +303,7 @@ function App() {
         };
         setProducts(prev => [...prev, newProduct]);
         setUploadImages([]); setUploadFiles([]);
-        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', d1_name: '', d1_price: '', d1_ship: '', d1_note: '', d2_name: '', d2_price: '', d2_ship: '', d2_note: '' });
+        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', price: '', ship: '', note: '' }] });
         if (uploadInputRef.current) uploadInputRef.current.value = '';
         loadProducts();
       }
@@ -386,6 +385,7 @@ function App() {
   const [detailForm, setDetailForm] = useState<any>({});
   const [priceAdjust, setPriceAdjust] = useState({ newPrice: '', date: '', note: '' });
   const [showPriceForm, setShowPriceForm] = useState(false);
+  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [showPriceChanges, setShowPriceChanges] = useState(false);
   const [priceChanges, setPriceChanges] = useState<any[]>([]);
   const [loadingPriceChanges, setLoadingPriceChanges] = useState(false);
@@ -525,6 +525,7 @@ function App() {
 
   const handleShowDetail = async (p: any) => {
     setDetailEditing(false);
+    setSelectedImageIdx(0);
     // Normalize field names
     const normalize = (obj: any) => ({
       ...obj,
@@ -757,24 +758,30 @@ function App() {
                 </div>
                 <div className={`pt-2 mt-1 ${currentTheme === 'tech' ? 'border-t border-cyan-500/20' : 'border-t border-slate-200'}`}>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    <div>
-                      <div className={`text-xs font-semibold mb-1 ${textColor}`}>分销商1 报价</div>
-                      {[{ key: 'd1_name', label: '名称' }, { key: 'd1_price', label: '价格' }, { key: 'd1_ship', label: '运费' }, { key: 'd1_note', label: '备注' }].map(({ key, label }) => (
-                        <div key={key} className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-xs w-10 font-medium shrink-0 ${textSecondary}`}>{label}</span>
-                          <input type="text" value={formData[key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} className={theme.input} />
+{formData.distributors.map((d: any, i: number) => (
+                      <div key={i} style={{marginBottom:8}}>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                          <span className={`text-xs font-semibold ${textColor}`}>分销商 {i+1}</span>
+                          {formData.distributors.length > 1 && <button onClick={() => {
+                            const arr = [...formData.distributors]; arr.splice(i,1);
+                            setFormData({...formData, distributors: arr});
+                          }} style={{padding:'2px 6px',fontSize:10,border:'none',background:'#fee2e2',color:'#ef4444',borderRadius:4,cursor:'pointer'}}>删除</button>}
                         </div>
-                      ))}
-                    </div>
-                    <div>
-                      <div className={`text-xs font-semibold mb-1 ${textColor}`}>分销商2 报价</div>
-                      {[{ key: 'd2_name', label: '名称' }, { key: 'd2_price', label: '价格' }, { key: 'd2_ship', label: '运费' }, { key: 'd2_note', label: '备注' }].map(({ key, label }) => (
-                        <div key={key} className="flex items-center gap-2 mb-0.5">
-                          <span className={`text-xs w-10 font-medium shrink-0 ${textSecondary}`}>{label}</span>
-                          <input type="text" value={formData[key as keyof typeof formData]} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} className={theme.input} />
-                        </div>
-                      ))}
-                    </div>
+                        {[{ key: 'name', label: '名称' }, { key: 'price', label: '价格' }, { key: 'ship', label: '运费' }, { key: 'note', label: '备注' }].map(({ key, label }) => (
+                          <div key={key} className="flex items-center gap-2 mb-0.5">
+                            <span className={`text-xs w-10 font-medium shrink-0 ${textSecondary}`}>{label}</span>
+                            <input type="text" value={(d as any)[key] || ''} onChange={(e) => {
+                              const arr = [...formData.distributors];
+                              arr[i] = {...arr[i], [key]: e.target.value};
+                              setFormData({...formData, distributors: arr});
+                            }} className={theme.input} />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    <button onClick={() => {
+                      setFormData({...formData, distributors: [...formData.distributors, { name: '', price: '', ship: '', note: '' }]});
+                    }} style={{padding:'4px 10px',fontSize:11,border:'1px dashed #3b82f6',background:'#eff6ff',color:'#3b82f6',borderRadius:6,cursor:'pointer',width:'100%'}}>+ 添加分销商</button>
                   </div>
                 </div>
               </div>
@@ -964,11 +971,11 @@ function App() {
         <div style={{flex:1,overflow:'auto',scrollbarWidth:'none',padding:20}}>
           <div style={{display:'flex',gap:20,marginBottom:16}}>
             <div style={{flexShrink:0}}>
-              <img src={detailProduct.image} alt="" style={{width:200,height:200,objectFit:'contain',background:'#f3f4f6',borderRadius:8}} />
+              <img src={detailProduct.images && detailProduct.images.length > 0 ? detailProduct.images[selectedImageIdx] || detailProduct.image : detailProduct.image} alt="" style={{width:200,height:200,objectFit:'contain',background:'#f3f4f6',borderRadius:8}} />
               {detailProduct.images && detailProduct.images.length > 1 && (
                 <div style={{display:'flex',gap:4,marginTop:4,flexWrap:'wrap',maxWidth:200}}>
-                  {detailProduct.images.slice(0, 6).map((img: string, i: number) => (
-                    <img key={i} src={img} alt="" style={{width:30,height:30,objectFit:'cover',borderRadius:4,border:'1px solid #e5e7eb',cursor:'pointer'}} onClick={() => {}} />
+                  {detailProduct.images.map((img: string, i: number) => (
+                    <img key={i} src={img} alt="" style={{width:selectedImageIdx === i ? 36 : 30,height:selectedImageIdx === i ? 36 : 30,objectFit:'cover',borderRadius:4,border:selectedImageIdx === i ? '2px solid #3b82f6' : '1px solid #e5e7eb',cursor:'pointer',transition:'all 0.15s'}} onClick={() => setSelectedImageIdx(i)} />
                   ))}
                 </div>
               )}
@@ -1008,31 +1015,34 @@ function App() {
             </div>
           </div>
           <div style={{background:'#f0fdf4',borderRadius:8,border:'1px solid #dcfce7',padding:'12px 16px',marginBottom:12}}>
-            <div style={{fontSize:12,fontWeight:600,color:'#16a34a',marginBottom:8}}>📊 分销商报价</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              <div style={{background:'#fff',borderRadius:6,padding:10}}>
-                <div style={{fontSize:11,fontWeight:600,color:'#555',marginBottom:6}}>分销商1</div>
-                {detailEditing ? (
-                  <><div style={{display:'flex',gap:4,marginBottom:4}}><span style={{fontSize:11,color:'#999',width:36}}>名称</span><input type="text" value={detailForm.dist1_name} onChange={e => setDetailForm({...detailForm, dist1_name: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div><div style={{display:'flex',gap:4,marginBottom:4}}><span style={{fontSize:11,color:'#999',width:36}}>价格</span><input type="text" value={detailForm.dist1_price} onChange={e => setDetailForm({...detailForm, dist1_price: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div>
-                  <div style={{display:'flex',gap:4,marginBottom:4}}><span style={{fontSize:11,color:'#999',width:36}}>运费</span><input type="text" value={detailForm.dist1_ship} onChange={e => setDetailForm({...detailForm, dist1_ship: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div>
-                  <div style={{display:'flex',gap:4}}><span style={{fontSize:11,color:'#999',width:36}}>备注</span><input type="text" value={detailForm.dist1_note} onChange={e => setDetailForm({...detailForm, dist1_note: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div></>
-                ) : (
-                  <div style={{fontSize:13,color:'#1a1a1a'}}>名称 {detailProduct.dist1_name || '-'} | 价格 {detailProduct.dist1_price || '-'} / 运费 {detailProduct.dist1_ship || '-'}{detailProduct.dist1_note && <div style={{fontSize:11,color:'#666',marginTop:2}}>备注: {detailProduct.dist1_note}</div>}</div>
-                )}
-              </div>
-              <div style={{background:'#fff',borderRadius:6,padding:10}}>
-                <div style={{fontSize:11,fontWeight:600,color:'#555',marginBottom:6}}>分销商2</div>
-                {detailEditing ? (
-                  <><div style={{display:'flex',gap:4,marginBottom:4}}><span style={{fontSize:11,color:'#999',width:36}}>名称</span><input type="text" value={detailForm.dist2_name} onChange={e => setDetailForm({...detailForm, dist2_name: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div><div style={{display:'flex',gap:4,marginBottom:4}}><span style={{fontSize:11,color:'#999',width:36}}>价格</span><input type="text" value={detailForm.dist2_price} onChange={e => setDetailForm({...detailForm, dist2_price: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div>
-                  <div style={{display:'flex',gap:4,marginBottom:4}}><span style={{fontSize:11,color:'#999',width:36}}>运费</span><input type="text" value={detailForm.dist2_ship} onChange={e => setDetailForm({...detailForm, dist2_ship: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div>
-                  <div style={{display:'flex',gap:4}}><span style={{fontSize:11,color:'#999',width:36}}>备注</span><input type="text" value={detailForm.dist2_note} onChange={e => setDetailForm({...detailForm, dist2_note: e.target.value})} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} /></div></>
-                ) : (
-                  <div style={{fontSize:13,color:'#1a1a1a'}}>名称 {detailProduct.dist2_name || '-'} | 价格 {detailProduct.dist2_price || '-'} / 运费 {detailProduct.dist2_ship || '-'}{detailProduct.dist2_note && <div style={{fontSize:11,color:'#666',marginTop:2}}>备注: {detailProduct.dist2_note}</div>}</div>
-                )}
-              </div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>📊 分销商报价</div>
+              {detailEditing && <button onClick={() => { setDetailForm({...detailForm, distributors: [...detailForm.distributors, {name:'',price:'',ship:'',note:''}]}) }} style={{padding:'2px 10px',fontSize:11,border:'1px dashed #16a34a',background:'#f0fdf4',color:'#16a34a',borderRadius:4,cursor:'pointer'}}>+ 添加</button>}
             </div>
+            {(detailEditing ? detailForm.distributors : (detailProduct.distributor_prices || [])).map((d: any, i: number) => (
+              <div key={i} style={{background:'#fff',borderRadius:6,padding:'8px 10px',marginBottom:6}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                  <span style={{fontSize:11,fontWeight:600,color:'#555'}}>分销商 {i+1}</span>
+                  {detailEditing && detailForm.distributors.length > 1 && <button onClick={() => { const arr = [...detailForm.distributors]; arr.splice(i,1); setDetailForm({...detailForm, distributors: arr}) }} style={{padding:'1px 6px',fontSize:10,border:'none',background:'#fee2e2',color:'#ef4444',borderRadius:3,cursor:'pointer'}}>删除</button>}
+                </div>
+                {detailEditing ? (
+                  <>{['name','price','ship','note'].map(fld => (
+                    <div key={fld} style={{display:'flex',gap:4,marginBottom:3}}>
+                      <span style={{fontSize:11,color:'#999',width:36}}>{fld === 'name' ? '名称' : fld === 'price' ? '价格' : fld === 'ship' ? '运费' : '备注'}</span>
+                      <input type="text" value={d[fld] || ''} onChange={e => { const arr = [...detailForm.distributors]; arr[i] = {...arr[i], [fld]: e.target.value}; setDetailForm({...detailForm, distributors: arr}) }} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} />
+                    </div>
+                  ))}</>
+                ) : (
+                  <div style={{fontSize:13,color:'#1a1a1a'}}>
+                    {d.distributor_name || '-'} | 价格 ¥{(d.base_price || 0).toFixed(2)} / 运费 ¥{(d.shipping_fee || 0).toFixed(2)}
+                    {d.remarks && <div style={{fontSize:11,color:'#666',marginTop:2}}>备注: {d.remarks}</div>}
+                  </div>
+                )}
+              </div>
+            ))}
+            {(!detailEditing && (!detailProduct.distributor_prices || detailProduct.distributor_prices.length === 0)) && <div style={{fontSize:12,color:'#999'}}>暂无分销商</div>}
           </div>
-          {/* 调价历史 */}
+          {/* 调价历史 */}          {/* 调价历史 */}
           <div style={{background:'#fff7ed',borderRadius:8,border:'1px solid #fed7aa',padding:'12px 16px',marginBottom:12}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
               <div style={{fontSize:12,fontWeight:600,color:'#ea580c'}}>📈 调价历史</div>
