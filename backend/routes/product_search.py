@@ -78,6 +78,7 @@ def product_to_dict(p: Product) -> dict:
     return {
         'id': p.id,
         'image_path': p.image_path,
+        'image_paths': json.loads(p.image_paths) if p.image_paths else [],
         'name': p.name,
         'manufacturer_code': p.manufacturer_code,
         'cost_price': p.cost_price,
@@ -209,7 +210,7 @@ def get_effective_price(product_id: str, as_of_date: str = None) -> float:
 
 @router.post('/upload')
 async def upload_product(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     name: str = Form(''),
     manufacturer_code: str = Form(''),
     cost_price: float = Form(0),
@@ -232,17 +233,23 @@ async def upload_product(
     prompt: str = Form(None),
 ):
     """上传新商品（图片 + 信息）"""
-    # 保存图片
-    ext = os.path.splitext(file.filename)[1] or '.jpg'
-    filename = f'{uuid.uuid4().hex}{ext}'
-    img_path = os.path.join(IMAGES_DIR, filename)
-    content = await file.read()
-    with open(img_path, 'wb') as f:
-        f.write(content)
+    # 保存所有图片
+    if not files:
+        raise HTTPException(400, '请至少上传一张图片')
+    img_paths = []
+    for file in files:
+        ext = os.path.splitext(file.filename)[1] or '.jpg'
+        filename = f'{uuid.uuid4().hex}{ext}'
+        img_path = os.path.join(IMAGES_DIR, filename)
+        content = await file.read()
+        with open(img_path, 'wb') as f:
+            f.write(content)
+        img_paths.append(img_path)
 
-    # 提取特征
+    # 用第一张图提取特征
+    primary_path = img_paths[0]
     try:
-        emb = extract_features_sync(img_path, prompt)
+        emb = extract_features_sync(primary_path, prompt)
     except Exception as e:
         raise HTTPException(500, f'特征提取失败: {e}')
 
@@ -252,7 +259,8 @@ async def upload_product(
     try:
         product = Product(
             id=product_id,
-            image_path=img_path,
+            image_path=primary_path,
+            image_paths=json.dumps(img_paths),
             name=name,
             manufacturer_code=manufacturer_code,
             cost_price=cost_price,

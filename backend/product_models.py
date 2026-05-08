@@ -20,6 +20,7 @@ class Product(Base):
 
     id = Column(String(64), primary_key=True)
     image_path = Column(String(500), nullable=False)
+    image_paths = Column(Text, default='')  # JSON array of all image paths
     name = Column(String(200), default='')                     # 商品名称
     manufacturer_code = Column(String(200), default='')        # 厂家型号代码
     cost_price = Column(Float, default=0)                      # 成本价
@@ -162,7 +163,7 @@ def init_db():
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        for col in ['dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
+        for col in ['image_paths','dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
             try:
                 c.execute(f'ALTER TABLE products ADD COLUMN {col} VARCHAR(200) DEFAULT ""')
             except:

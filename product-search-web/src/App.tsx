@@ -27,6 +27,7 @@ interface Product {
   dist2_price?: string;
   dist2_ship?: string;
   dist2_note?: string;
+  images?: string[];
 }
 
 const themes: Record<ThemeStyle, { name: string; icon: string; desc: string }> = {
@@ -51,8 +52,8 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchImage, setSearchImage] = useState<string | null>(null);
   const [searchFile, setSearchFile] = useState<File | null>(null);
-  const [uploadImage, setUploadImage] = useState<string | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadImages, setUploadImages] = useState<string[]>([]);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [rerank, setRerank] = useState(false);
   const [returnCount, setReturnCount] = useState(10);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
@@ -259,19 +260,21 @@ function App() {
   };
 
   const handleUploadImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadFile(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+    setUploadFiles(fileArray);
+    Promise.all(fileArray.map(f => new Promise<string>((resolve) => {
       const reader = new FileReader();
-      reader.onload = (event) => setUploadImage(event.target?.result as string);
-      reader.readAsDataURL(file);
-    }
+      reader.onload = (ev) => resolve(ev.target?.result as string);
+      reader.readAsDataURL(f);
+    }))).then(results => setUploadImages(results));
   };
 
   const handleAddProduct = async () => {
-    if (!uploadImage || !uploadFile) return;
+    if (!uploadImages.length || !uploadFiles.length) return;
     const form = new FormData();
-    form.append('file', uploadFile);
+    uploadFiles.forEach(f => form.append('files', f));
     const fieldMap: Record<string, string> = {
       date: 'inquiry_date', factory: 'manufacturer_name', model: 'manufacturer_code',
       address: 'address', link: 'manufacturer_link',
@@ -290,6 +293,8 @@ function App() {
         const p = d.product;
         const newProduct: Product = {
           id: p.id, image: `${API}/api/products/image/${p.id}`,
+        images: p.image_urls || [],
+        images: p.image_urls || [],
           date: p.inquiry_date || '', factory: p.manufacturer_name || '', model: p.manufacturer_code,
           address: p.address || '', link: p.manufacturer_link || '',
           cost: String(p.cost_price || ''), note: p.remarks || '',
@@ -298,7 +303,7 @@ function App() {
           dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
         };
         setProducts(prev => [...prev, newProduct]);
-        setUploadImage(null); setUploadFile(null);
+        setUploadImages([]); setUploadFiles([]);
         setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', d1_name: '', d1_price: '', d1_ship: '', d1_note: '', d2_name: '', d2_price: '', d2_ship: '', d2_note: '' });
         if (uploadInputRef.current) uploadInputRef.current.value = '';
         loadProducts();
@@ -322,6 +327,8 @@ function App() {
       const d = await res.json();
       const items = (d.results || []).map((p: any) => ({
         id: p.id, image: `${API}/api/products/image/${p.id}`,
+        images: p.image_urls || [],
+        images: p.image_urls || [],
         date: p.inquiry_date || '', factory: p.manufacturer_name || '',
         model: p.manufacturer_code, address: p.address || '',
         link: p.manufacturer_link || '', cost: String(p.cost_price || ''),
@@ -347,6 +354,8 @@ function App() {
       const d = await res.json();
       const items = (d.products || []).map((p: any) => ({
         id: p.id, image: `${API}/api/products/image/${p.id}`,
+        images: p.image_urls || [],
+        images: p.image_urls || [],
         date: p.inquiry_date || '', factory: p.manufacturer_name || '', model: p.manufacturer_code,
         address: p.address || '', link: p.manufacturer_link || '',
         cost: String(p.cost_price || ''), note: p.remarks || '',
@@ -524,6 +533,7 @@ function App() {
       cost: obj.cost !== undefined ? String(obj.cost) : (obj.cost_price !== undefined ? String(obj.cost_price) : ''),
       shipping: obj.shipping !== undefined ? String(obj.shipping) : (obj.shipping_fee !== undefined ? String(obj.shipping_fee) : ''),
       model: obj.model || obj.manufacturer_code || '',
+      images: obj.images || obj.image_urls || [],
       note: obj.note || obj.remarks || '',
       dist1_name: obj.dist1_name || obj.dist1_name || '', dist1_price: obj.dist1_price || obj.dist1_base_price || '',
       dist1_ship: obj.dist1_ship || obj.dist1_shipping_fee || '',
@@ -665,8 +675,12 @@ function App() {
           </div>
 
           <div className={theme.uploadZone} onClick={() => uploadInputRef.current?.click()}>
-            {uploadImage ? (
-              <img src={uploadImage} alt="preview" className="w-full h-full object-contain rounded p-1" />
+            {uploadImages.length > 0 ? (
+              <div className="flex gap-1 flex-wrap items-center justify-center w-full h-full p-1">
+                {uploadImages.map((img, i) => (
+                  <img key={i} src={img} alt={`preview ${i}`} className="h-16 object-contain rounded border border-gray-200" />
+                ))}
+              </div>
             ) : (
               <>
                 <div className={`p-2 rounded-lg mb-1 ${currentTheme === 'tech' ? 'bg-cyan-500/20' : 'bg-indigo-100/50'}`}>
@@ -676,7 +690,7 @@ function App() {
               </>
             )}
           </div>
-          <input ref={uploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleUploadImageSelect} />
+          <input ref={uploadInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUploadImageSelect} />
 
           <div className="space-y-2 my-3">
             {[{ key: 'date', label: '咨询日期' }, { key: 'factory', label: '厂家名称' }, { key: 'model', label: '型号代码' }].map(({ key, label }) => (
@@ -723,7 +737,7 @@ function App() {
 
           <div className={`text-xs mb-2 font-medium ${textSecondary}`}>数据库共 {manageTotal} 件商品</div>
 
-          <button onClick={handleAddProduct} disabled={!uploadImage} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
+          <button onClick={handleAddProduct} disabled={!uploadImages.length} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
           <button onClick={() => setShowManageDb(true)} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs mb-2`}><Settings className="w-3 h-3" />管理数据库</button>
           <button onClick={() => { setShowPriceChanges(true); loadPriceChanges(1); }} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs`}><Settings className="w-3 h-3" />调价记录</button>
 
@@ -852,7 +866,10 @@ function App() {
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:12}}>
             {products.map((p) => (
               <div key={p.id} style={{border:'1px solid #e5e7eb',borderRadius:8,padding:10,background:'#fafafa'}}>
-                <img src={p.image} alt="" style={{width:'100%',height:80,objectFit:'contain',background:'#f3f4f6',borderRadius:4,marginBottom:8}} />
+                <div style={{position:'relative',width:'100%',height:80,background:'#f3f4f6',borderRadius:4,marginBottom:8,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                <img src={p.image} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} />
+                {p.images && p.images.length > 1 && <span style={{position:'absolute',bottom:4,right:4,background:'rgba(0,0,0,0.6)',color:'#fff',fontSize:10,padding:'1px 6px',borderRadius:8}}>+{p.images.length - 1}</span>}
+              </div>
                 <div style={{fontSize:12,fontWeight:500,color:'#1a1a1a',marginBottom:4}}>{p.factory || '(无厂家)'}</div>
                 <div style={{fontSize:11,color:'#6b7280',marginBottom:4}}>{p.model || ''}</div>
                 <div style={{fontSize:11,color:'#6b7280',marginBottom:4}}>成本: {p.cost || '-'}</div>
@@ -946,7 +963,16 @@ function App() {
         </div>
         <div style={{flex:1,overflow:'auto',scrollbarWidth:'none',padding:20}}>
           <div style={{display:'flex',gap:20,marginBottom:16}}>
-            <img src={detailProduct.image} alt="" style={{width:200,height:200,objectFit:'contain',background:'#f3f4f6',borderRadius:8,flexShrink:0}} />
+            <div style={{flexShrink:0}}>
+              <img src={detailProduct.image} alt="" style={{width:200,height:200,objectFit:'contain',background:'#f3f4f6',borderRadius:8}} />
+              {detailProduct.images && detailProduct.images.length > 1 && (
+                <div style={{display:'flex',gap:4,marginTop:4,flexWrap:'wrap',maxWidth:200}}>
+                  {detailProduct.images.slice(0, 6).map((img: string, i: number) => (
+                    <img key={i} src={img} alt="" style={{width:30,height:30,objectFit:'cover',borderRadius:4,border:'1px solid #e5e7eb',cursor:'pointer'}} onClick={() => {}} />
+                  ))}
+                </div>
+              )}
+            </div>
             <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 20px',alignContent:'start'}}>
               <div><div style={{fontSize:11,color:'#999',marginBottom:1,textTransform:'uppercase',letterSpacing:0.5}}>咨询日期</div>
                 {detailEditing ? <input type="text" value={detailForm.date} onChange={e => setDetailForm({...detailForm, date: e.target.value})} style={{width:'100%',padding:'4px 8px',fontSize:13,border:'1px solid #d1d5db',borderRadius:6,outline:'none'}} /> : <div style={{fontSize:14,fontWeight:500,color:'#1a1a1a'}}>{detailProduct.date || '-'}</div>}
