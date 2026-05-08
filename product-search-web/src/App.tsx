@@ -294,8 +294,8 @@ function App() {
           address: p.address || '', link: p.manufacturer_link || '',
           cost: String(p.cost_price || ''), note: p.remarks || '',
           shipping: String(p.shipping_fee || ''), color: p.color, size: p.size,
-          dist1_name: p.dist1_name || '', dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
-          dist2_name: p.dist2_name || '', dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
+          dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
+          dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
         };
         setProducts(prev => [...prev, newProduct]);
         setUploadImage(null); setUploadFile(null);
@@ -327,8 +327,8 @@ function App() {
         link: p.manufacturer_link || '', cost: String(p.cost_price || ''),
         note: p.remarks || '', shipping: String(p.shipping_fee || ''),
         color: p.color, size: p.size, score: p.score,
-        dist1_name: p.dist1_name || '', dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
-        dist2_name: p.dist2_name || '', dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
+        dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
+        dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
       }));
       setSearchResults(items);
       setSearchStatus(items.length > 0 ? `找到 ${items.length} 个相似商品` : '未找到相似商品');
@@ -339,10 +339,11 @@ function App() {
     setIsSearching(false);
   };
 
-  const loadProducts = async (search?: string) => {
+  const loadProducts = async (search?: string, page: number = 1) => {
     try {
-      const url = search ? `${API}/api/products/list?page_size=500&search=${encodeURIComponent(search)}` : `${API}/api/products/list?page_size=500`;
-      const res = await fetch(url);
+      const params = new URLSearchParams({ page: String(page), page_size: String(MANAGE_PAGE_SIZE) });
+      if (search) params.set('search', search);
+      const res = await fetch(`${API}/api/products/list?${params}`);
       const d = await res.json();
       const items = (d.products || []).map((p: any) => ({
         id: p.id, image: `${API}/api/products/image/${p.id}`,
@@ -350,10 +351,11 @@ function App() {
         address: p.address || '', link: p.manufacturer_link || '',
         cost: String(p.cost_price || ''), note: p.remarks || '',
         shipping: String(p.shipping_fee || ''), color: p.color, size: p.size,
-      dist1_name: p.dist1_name || '', dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
-      dist2_name: p.dist2_name || '', dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
+      dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
+      dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
       }));
       setProducts(items);
+      setManageTotal(d.total || 0);
     } catch (e) {
       console.error('Load failed:', e);
     }
@@ -471,7 +473,7 @@ function App() {
         price_history: full.price_history || [],
         cost: String(newCost),
       }));
-      loadProducts();
+      loadProducts(manageSearch, managePage);
     } catch (e) {
       console.error('Save failed:', e);
     }
@@ -507,6 +509,10 @@ function App() {
       console.error('Add price history failed:', e);
     }
   };
+
+  const [managePage, setManagePage] = useState(1);
+  const [manageTotal, setManageTotal] = useState(0);
+  const MANAGE_PAGE_SIZE = 60;
 
   const handleShowDetail = async (p: any) => {
     setDetailEditing(false);
@@ -574,13 +580,13 @@ function App() {
         body: JSON.stringify(body),
       });
       setEditingId(null);
-      loadProducts();
+      loadProducts(manageSearch, managePage);
     } catch (e) {
       console.error('Save failed:', e);
     }
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { loadProducts('', 1); }, []);
 
   const handleInsertRemarkImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -837,10 +843,10 @@ function App() {
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',borderBottom:'1px solid #e5e7eb'}}>
           <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
             <h2 style={{margin:0,fontSize:16,fontWeight:600,color:'#1a1a1a',whiteSpace:'nowrap'}}>管理数据库</h2>
-            <input type="text" value={manageSearch} onChange={e => { setManageSearch(e.target.value); loadProducts(e.target.value); }} placeholder="搜索厂家名称、型号代码、分销商名称..." style={{flex:1,maxWidth:400,padding:'6px 12px',fontSize:13,border:'1px solid #d1d5db',borderRadius:6,outline:'none'}} />
-            {manageSearch && <button onClick={() => { setManageSearch(''); loadProducts(); }} style={{padding:'4px 8px',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:4,cursor:'pointer'}}>清除</button>}
+            <input type="text" value={manageSearch} onChange={e => { setManageSearch(e.target.value); setManagePage(1); loadProducts(e.target.value, 1); }} placeholder="搜索厂家名称、型号代码、分销商名称..." style={{flex:1,maxWidth:400,padding:'6px 12px',fontSize:13,border:'1px solid #d1d5db',borderRadius:6,outline:'none'}} />
+            {manageSearch && <button onClick={() => { setManageSearch(''); setManagePage(1); loadProducts('', 1); }} style={{padding:'4px 8px',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:4,cursor:'pointer'}}>清除</button>}
           </div>
-          <button onClick={() => setShowManageDb(false); setManageSearch("");} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X className="w-5 h-5" style={{color:'#6b7280'}} /></button>
+          <button onClick={() => { setShowManageDb(false); setManageSearch(""); }} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X className="w-5 h-5" style={{color:'#6b7280'}} /></button>
         </div>
         <div style={{flex:1,overflow:'auto',scrollbarWidth:'none',padding:16}}>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:12}}>
@@ -1056,7 +1062,7 @@ function App() {
             <><button onClick={handleDetailSave} style={{padding:'6px 16px',fontSize:13,border:'none',background:'#22c55e',color:'#fff',borderRadius:6,cursor:'pointer'}}>💾 保存修改</button>
             <button onClick={() => setDetailEditing(false)} style={{padding:'6px 16px',fontSize:13,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:6,cursor:'pointer'}}>取消</button></>
           ) : (
-            <button onClick={async () => { if (window.confirm('确定删除此商品？')) { await fetch(`${API}/api/products/${detailProduct.id}`, {method:'DELETE'}); setShowDetail(false); loadProducts(); }}} style={{padding:'6px 16px',fontSize:13,border:'none',background:'#ef4444',color:'#fff',borderRadius:6,cursor:'pointer'}}>🗑️ 删除</button>
+            <button onClick={async () => { if (window.confirm('确定删除此商品？')) { await fetch(`${API}/api/products/${detailProduct.id}`, {method:'DELETE'}); setShowDetail(false); loadProducts(manageSearch, managePage); }}} style={{padding:'6px 16px',fontSize:13,border:'none',background:'#ef4444',color:'#fff',borderRadius:6,cursor:'pointer'}}>🗑️ 删除</button>
           )}
         </div>
       </div>
