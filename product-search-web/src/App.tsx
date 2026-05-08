@@ -766,7 +766,7 @@ function App() {
 
           <button onClick={handleAddProduct} disabled={!uploadImages.length} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
           <button onClick={() => setShowManageDb(true)} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs mb-2`}><Settings className="w-3 h-3" />管理数据库</button>
-          <button onClick={() => { setShowPriceChanges(true); loadPriceChanges(1); }} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs`}><Settings className="w-3 h-3" />调价记录</button>
+          <button onClick={() => { setShowPriceChanges(true); loadPriceChanges(1); }} style={{padding:'6px 12px',fontSize:11,border:'none',background:'#8b5cf6',color:'#fff',borderRadius:6,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:4}}><Settings className="w-3 h-3" />调价记录</button>
 
           {showMoreFields && (
             <div className="absolute left-full top-0 h-full z-50 ml-4" style={{width:550}}>
