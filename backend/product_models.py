@@ -47,6 +47,7 @@ class Product(Base):
 
     # 特征向量（2560维 qwen3-vl-embedding）
     embedding = Column(LargeBinary, nullable=True)
+    all_embeddings = Column(Text, default='')  # JSON: list of [emb1, emb2, ...] for multi-image search
     embedding_dim = Column(Integer, default=0)
 
     created_at = Column(DateTime, default=datetime.now)
@@ -163,7 +164,7 @@ def init_db():
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        for col in ['image_paths','dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
+        for col in ['image_paths','all_embeddings','dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
             try:
                 c.execute(f'ALTER TABLE products ADD COLUMN {col} VARCHAR(200) DEFAULT ""')
             except:

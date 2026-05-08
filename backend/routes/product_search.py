@@ -79,6 +79,7 @@ def product_to_dict(p: Product) -> dict:
         'id': p.id,
         'image_path': p.image_path,
         'image_paths': json.loads(p.image_paths) if p.image_paths else [],
+        'image_urls': ['/api/products/image-file/' + os.path.basename(ip) for ip in json.loads(p.image_paths)] if p.image_paths else [],
         'name': p.name,
         'manufacturer_code': p.manufacturer_code,
         'cost_price': p.cost_price,
@@ -104,22 +105,31 @@ def product_to_dict(p: Product) -> dict:
 
 
 def load_all_embeddings() -> tuple:
-    """加载所有商品向量到内存"""
+    """加载所有商品向量到内存（含多图向量）"""
     db = get_session()
     try:
         products = db.query(Product).filter(Product.embedding.isnot(None)).all()
         if not products:
             return [], {}, np.zeros((0, 0))
-        dims = [len(np.frombuffer(p.embedding, dtype=np.float32)) for p in products]
-        dim = max(dims) if dims else 0
-        emb_matrix = np.zeros((len(products), dim), dtype=np.float32)
+        # Build matrix with one row per embedding (products may have multiple)
+        all_embs = []  # list of (product_id, embedding_vector)
+        for p in products:
+            try:
+                all_embs.append((p.id, np.frombuffer(p.embedding, dtype=np.float32)))
+                if p.all_embeddings:
+                    extra = json.loads(p.all_embeddings)[1:]  # skip first (same as embedding)
+                    for e in extra:
+                        all_embs.append((p.id, np.array(e, dtype=np.float32)))
+            except:
+                all_embs.append((p.id, np.frombuffer(p.embedding, dtype=np.float32)))
+        dim = max(len(e[1]) for e in all_embs) if all_embs else 0
+        emb_matrix = np.zeros((len(all_embs), dim), dtype=np.float32)
         prod_map = {}
         ids = []
-        for i, p in enumerate(products):
-            emb = np.frombuffer(p.embedding, dtype=np.float32)
+        for i, (pid, emb) in enumerate(all_embs):
             emb_matrix[i] = emb
-            prod_map[p.id] = p
-            ids.append(p.id)
+            prod_map[pid] = prod_map.get(pid) or next(p for p in products if p.id == pid)
+            ids.append(pid)
         return ids, prod_map, emb_matrix
     finally:
         db.close()
@@ -135,14 +145,19 @@ def search_by_image(query_emb: list, top_k: int = 10) -> list:
     min_dim = min(len(q), emb_matrix.shape[1])
     scores = np.dot(emb_matrix[:, :min_dim], q[:min_dim]) / (
         np.linalg.norm(emb_matrix[:, :min_dim], axis=1) * np.linalg.norm(q[:min_dim]) + 1e-9)
-    top_indices = np.argsort(scores)[::-1][:top_k]
+    # Take max score per product (multiple embeddings per product)
+    best_scores = {}
+    for i, pid in enumerate(ids):
+        score = float(scores[i])
+        if pid not in best_scores or score > best_scores[pid][0]:
+            best_scores[pid] = (score, pid)
+    sorted_pids = sorted(best_scores.items(), key=lambda x: x[1][0], reverse=True)[:top_k]
 
     results = []
-    for idx in top_indices:
-        pid = ids[idx]
+    for pid, (score, _) in sorted_pids:
         p = prod_map[pid]
         r = product_to_dict(p)
-        r['score'] = float(scores[idx])
+        r['score'] = score
         r['price_history'] = get_price_history(pid)
         r['distributor_prices'] = get_distributor_prices(pid)
         results.append(r)
@@ -246,10 +261,17 @@ async def upload_product(
             f.write(content)
         img_paths.append(img_path)
 
-    # 用第一张图提取特征
+    # 提取所有图片的特征向量
     primary_path = img_paths[0]
     try:
         emb = extract_features_sync(primary_path, prompt)
+        all_embs = [emb]
+        for extra_path in img_paths[1:]:
+            try:
+                extra_emb = extract_features_sync(extra_path, prompt)
+                all_embs.append(extra_emb)
+            except:
+                pass
     except Exception as e:
         raise HTTPException(500, f'特征提取失败: {e}')
 
@@ -257,10 +279,13 @@ async def upload_product(
     product_id = uuid.uuid4().hex
     db = get_session()
     try:
+        # Serialize all embeddings: each as a list of floats
+        all_embeddings_json = json.dumps([e.tolist() if hasattr(e, 'tolist') else e for e in all_embs])
         product = Product(
             id=product_id,
             image_path=primary_path,
             image_paths=json.dumps(img_paths),
+            all_embeddings=all_embeddings_json,
             name=name,
             manufacturer_code=manufacturer_code,
             cost_price=cost_price,
