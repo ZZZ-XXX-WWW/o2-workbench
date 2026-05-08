@@ -81,8 +81,9 @@ class DistributorPrice(Base):
     product_id = Column(String(64), ForeignKey('products.id'), nullable=False)
     distributor_key = Column(String(20), nullable=False)       # dist1 / dist2
     distributor_name = Column(String(100), default='')         # 分销商名称
-    base_price = Column(Float, default=0)                      # 底价
-    shipping_fee = Column(Float, default=0)                    # 额外运费
+    base_price = Column(Float, default=0)                      # 裸货价格
+    package_price = Column(Float, default=0)                   # 包装价格
+    shipping_fee = Column(Float, default=0)                    # 运费
     total_price = Column(Float, default=0)                     # 总报价
     remarks = Column(Text, default='')                         # 备注(退货率控制等)
     created_at = Column(DateTime, default=datetime.now)

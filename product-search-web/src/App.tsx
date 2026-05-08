@@ -60,7 +60,7 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchStatus, setSearchStatus] = useState('');
   const [manageProducts, setManageProducts] = useState<Product[]>([]);
-  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', price: '', ship: '', note: '' }] });
+  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', base_price: '', package_price: '', shipping_fee: '' }] });
   const [showMoreFields, setShowMoreFields] = useState(false);
   const [showManageDb, setShowManageDb] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
@@ -298,9 +298,10 @@ function App() {
               body: JSON.stringify({
                 distributor_key: 'dist_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
                 distributor_name: dist.name,
-                base_price: parseFloat(dist.price) || 0,
-                shipping_fee: parseFloat(dist.ship) || 0,
-                total_price: (parseFloat(dist.price) || 0) + (parseFloat(dist.ship) || 0),
+                base_price: parseFloat(dist.base_price) || 0,
+                package_price: parseFloat(dist.package_price) || 0,
+                shipping_fee: parseFloat(dist.shipping_fee) || 0,
+                total_price: (parseFloat(dist.base_price) || 0) + (parseFloat(dist.package_price) || 0) + (parseFloat(dist.shipping_fee) || 0),
                 remarks: dist.note,
               }),
             });
@@ -316,7 +317,7 @@ function App() {
         };
         setProducts(prev => [...prev, newProduct]);
         setUploadImages([]); setUploadFiles([]);
-        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', price: '', ship: '', note: '' }] });
+        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', base_price: '', package_price: '', shipping_fee: '' }] });
         if (uploadInputRef.current) uploadInputRef.current.value = '';
         loadProducts();
       }
@@ -435,12 +436,13 @@ function App() {
       date: detailProduct.date || '',
       address: detailProduct.address || '',
       link: detailProduct.link || '',
-      dist1_name: detailProduct.dist1_name || '', dist1_price: detailProduct.dist1_price || '',
-      dist1_ship: detailProduct.dist1_ship || '',
-      dist1_note: detailProduct.dist1_note || '',
-      dist2_name: detailProduct.dist2_name || '', dist2_price: detailProduct.dist2_price || '',
-      dist2_ship: detailProduct.dist2_ship || '',
-      dist2_note: detailProduct.dist2_note || '',
+      distributors: (detailProduct.distributor_prices || []).map((d: any) => ({
+        name: d.distributor_name || '',
+        base_price: String(d.base_price || ''),
+        package_price: String(d.package_price || ''),
+        shipping_fee: String(d.shipping_fee || ''),
+        note: d.remarks || '',
+      })),
     });
     setDetailEditing(true);
   };
@@ -549,12 +551,7 @@ function App() {
       model: obj.model || obj.manufacturer_code || '',
       images: obj.images || obj.image_urls || [],
       note: obj.note || obj.remarks || '',
-      dist1_name: obj.dist1_name || obj.dist1_name || '', dist1_price: obj.dist1_price || obj.dist1_base_price || '',
-      dist1_ship: obj.dist1_ship || obj.dist1_shipping_fee || '',
-      dist1_note: obj.dist1_note || obj.dist1_remarks || '',
-      dist2_name: obj.dist2_name || obj.dist2_name || '', dist2_price: obj.dist2_price || obj.dist2_base_price || '',
-      dist2_ship: obj.dist2_ship || obj.dist2_shipping_fee || '',
-      dist2_note: obj.dist2_note || obj.dist2_remarks || '',
+      distributor_prices: obj.distributor_prices || [],
     });
     setDetailProduct(normalize(p));
     setShowDetail(true);
@@ -780,7 +777,7 @@ function App() {
                             setFormData({...formData, distributors: arr});
                           }} style={{padding:'2px 6px',fontSize:10,border:'none',background:'#fee2e2',color:'#ef4444',borderRadius:4,cursor:'pointer'}}>删除</button>}
                         </div>
-                        {[{ key: 'name', label: '名称' }, { key: 'price', label: '价格' }, { key: 'ship', label: '运费' }, { key: 'note', label: '备注' }].map(({ key, label }) => (
+                        {[{ key: 'name', label: '名称' }, { key: 'base_price', label: '裸货价' }, { key: 'package_price', label: '包装价' }, { key: 'shipping_fee', label: '运费' }].map(({ key, label }) => (
                           <div key={key} className="flex items-center gap-2 mb-0.5">
                             <span className={`text-xs w-10 font-medium shrink-0 ${textSecondary}`}>{label}</span>
                             <input type="text" value={(d as any)[key] || ''} onChange={(e) => {
@@ -1030,24 +1027,24 @@ function App() {
           <div style={{background:'#f0fdf4',borderRadius:8,border:'1px solid #dcfce7',padding:'12px 16px',marginBottom:12}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
               <div style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>📊 分销商报价</div>
-              {detailEditing && <button onClick={() => { setDetailForm({...detailForm, distributors: [...detailForm.distributors, {name:'',price:'',ship:'',note:''}]}) }} style={{padding:'2px 10px',fontSize:11,border:'1px dashed #16a34a',background:'#f0fdf4',color:'#16a34a',borderRadius:4,cursor:'pointer'}}>+ 添加</button>}
+              {detailEditing && <button onClick={() => { setDetailForm({...detailForm, distributors: [...(detailForm.distributors || []), {name:'',base_price:'',package_price:'',shipping_fee:'',note:''}]}) }} style={{padding:'2px 10px',fontSize:11,border:'1px dashed #16a34a',background:'#f0fdf4',color:'#16a34a',borderRadius:4,cursor:'pointer'}}>+ 添加</button>}
             </div>
-            {(detailEditing ? detailForm.distributors : (detailProduct.distributor_prices || [])).map((d: any, i: number) => (
+            {(detailEditing ? (detailForm.distributors || []) : (detailProduct.distributor_prices || [])).map((d: any, i: number) => (
               <div key={i} style={{background:'#fff',borderRadius:6,padding:'8px 10px',marginBottom:6}}>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
                   <span style={{fontSize:11,fontWeight:600,color:'#555'}}>分销商 {i+1}</span>
                   {detailEditing && detailForm.distributors.length > 1 && <button onClick={() => { const arr = [...detailForm.distributors]; arr.splice(i,1); setDetailForm({...detailForm, distributors: arr}) }} style={{padding:'1px 6px',fontSize:10,border:'none',background:'#fee2e2',color:'#ef4444',borderRadius:3,cursor:'pointer'}}>删除</button>}
                 </div>
                 {detailEditing ? (
-                  <>{['name','price','ship','note'].map(fld => (
+                  <>{['name','base_price','package_price','shipping_fee','note'].map(fld => (
                     <div key={fld} style={{display:'flex',gap:4,marginBottom:3}}>
-                      <span style={{fontSize:11,color:'#999',width:36}}>{fld === 'name' ? '名称' : fld === 'price' ? '价格' : fld === 'ship' ? '运费' : '备注'}</span>
+                      <span style={{fontSize:11,color:'#999',width:36}}>{fld === 'name' ? '名称' : fld === 'base_price' ? '裸货价' : fld === 'package_price' ? '包装价' : fld === 'shipping_fee' ? '运费' : '备注'}</span>
                       <input type="text" value={d[fld] || ''} onChange={e => { const arr = [...detailForm.distributors]; arr[i] = {...arr[i], [fld]: e.target.value}; setDetailForm({...detailForm, distributors: arr}) }} style={{flex:1,padding:'3px 6px',fontSize:12,border:'1px solid #d1d5db',borderRadius:4,outline:'none'}} />
                     </div>
                   ))}</>
                 ) : (
                   <div style={{fontSize:13,color:'#1a1a1a'}}>
-                    {d.distributor_name || '-'} | 价格 ¥{(d.base_price || 0).toFixed(2)} / 运费 ¥{(d.shipping_fee || 0).toFixed(2)}
+                    {d.distributor_name || '-'} | 裸货 ¥{(d.base_price || 0).toFixed(2)} 包装 ¥{(d.package_price || 0).toFixed(2)} 运费 ¥{(d.shipping_fee || 0).toFixed(2)}
                     {d.remarks && <div style={{fontSize:11,color:'#666',marginTop:2}}>备注: {d.remarks}</div>}
                   </div>
                 )}
