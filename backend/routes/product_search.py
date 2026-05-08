@@ -191,6 +191,7 @@ def get_distributor_prices(product_id: str) -> list:
             'distributor_key': dp.distributor_key,
             'distributor_name': dp.distributor_name,
             'base_price': dp.base_price,
+            'package_price': dp.package_price,
             'shipping_fee': dp.shipping_fee,
             'total_price': dp.total_price,
             'remarks': dp.remarks,
