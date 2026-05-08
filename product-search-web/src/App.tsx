@@ -60,7 +60,7 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchStatus, setSearchStatus] = useState('');
   const [manageProducts, setManageProducts] = useState<Product[]>([]);
-  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', base_price: '', package_price: '', shipping_fee: '' }] });
+  const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', base_price: '', package_price: '', shipping_fee: '', note: '' }] });
   const [showMoreFields, setShowMoreFields] = useState(false);
   const [showManageDb, setShowManageDb] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
@@ -291,7 +291,7 @@ function App() {
       if (d.ok) {
         const p = d.product;
         for (const dist of formData.distributors) {
-          if (dist.name || dist.price) {
+          if (dist.name || dist.base_price || dist.package_price) {
             await fetch(`${API}/api/products/${p.id}/distributor-price`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -317,7 +317,7 @@ function App() {
         };
         setProducts(prev => [...prev, newProduct]);
         setUploadImages([]); setUploadFiles([]);
-        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', base_price: '', package_price: '', shipping_fee: '' }] });
+        setFormData({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', distributors: [{ name: '', base_price: '', package_price: '', shipping_fee: '', note: '' }] });
         if (uploadInputRef.current) uploadInputRef.current.value = '';
         loadProducts();
       }
@@ -463,18 +463,33 @@ function App() {
         color: detailForm.color,
         size: detailForm.size,
         remarks: detailForm.note,
-        dist1_name: detailForm.dist1_name, dist1_base_price: detailForm.dist1_price,
-        dist1_shipping_fee: detailForm.dist1_ship,
-        dist1_remarks: detailForm.dist1_note,
-        dist2_name: detailForm.dist2_name, dist2_base_price: detailForm.dist2_price,
-        dist2_shipping_fee: detailForm.dist2_ship,
-        dist2_remarks: detailForm.dist2_note,
       };
       await fetch(`${API}/api/products/${detailProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      // 保存分销商（删除旧的，重新创建）
+      if (detailForm.distributors) {
+        await fetch(`${API}/api/products/${detailProduct.id}/distributor-prices`, { method: 'DELETE' });
+        for (const dist of detailForm.distributors) {
+          if (dist.name || dist.base_price || dist.package_price) {
+            await fetch(`${API}/api/products/${detailProduct.id}/distributor-price`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                distributor_key: 'dist_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+                distributor_name: dist.name,
+                base_price: parseFloat(dist.base_price) || 0,
+                package_price: parseFloat(dist.package_price) || 0,
+                shipping_fee: parseFloat(dist.shipping_fee) || 0,
+                total_price: (parseFloat(dist.base_price) || 0) + (parseFloat(dist.package_price) || 0) + (parseFloat(dist.shipping_fee) || 0),
+                remarks: dist.note || '',
+              }),
+            });
+          }
+        }
+      }
       // 如果成本价变了，自动记录调价历史
       if (oldCost !== newCost && newCost > 0) {
         const today = new Date().toISOString().split('T')[0];
@@ -494,6 +509,7 @@ function App() {
       const full = await res.json();
       setDetailProduct((prev: any) => ({
         ...prev, ...detailForm,
+        distributor_prices: full.distributor_prices || [],
         price_history: full.price_history || [],
         cost: String(newCost),
       }));
@@ -777,7 +793,7 @@ function App() {
                             setFormData({...formData, distributors: arr});
                           }} style={{padding:'2px 6px',fontSize:10,border:'none',background:'#fee2e2',color:'#ef4444',borderRadius:4,cursor:'pointer'}}>删除</button>}
                         </div>
-                        {[{ key: 'name', label: '名称' }, { key: 'base_price', label: '裸货价' }, { key: 'package_price', label: '包装价' }, { key: 'shipping_fee', label: '运费' }].map(({ key, label }) => (
+                        {[{ key: 'name', label: '名称' }, { key: 'base_price', label: '裸货价' }, { key: 'package_price', label: '包装价' }, { key: 'shipping_fee', label: '运费' }, { key: 'note', label: '备注' }].map(({ key, label }) => (
                           <div key={key} className="flex items-center gap-2 mb-0.5">
                             <span className={`text-xs w-10 font-medium shrink-0 ${textSecondary}`}>{label}</span>
                             <input type="text" value={(d as any)[key] || ''} onChange={(e) => {
@@ -790,7 +806,7 @@ function App() {
                       </div>
                     ))}
                     <button onClick={() => {
-                      setFormData({...formData, distributors: [...formData.distributors, { name: '', price: '', ship: '', note: '' }]});
+                      setFormData({...formData, distributors: [...formData.distributors, { name: '', base_price: '', package_price: '', shipping_fee: '', note: '' }]});
                     }} style={{padding:'4px 10px',fontSize:11,border:'1px dashed #3b82f6',background:'#eff6ff',color:'#3b82f6',borderRadius:6,cursor:'pointer',width:'100%'}}>+ 添加分销商</button>
                   </div>
                 </div>

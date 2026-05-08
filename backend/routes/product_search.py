@@ -55,6 +55,7 @@ class DistributorPriceCreate(BaseModel):
     distributor_key: str  # dist1 / dist2
     distributor_name: str = ''
     base_price: float = 0
+    package_price: float = 0
     shipping_fee: float = 0
     total_price: float = 0
     remarks: str = ''
@@ -624,6 +625,21 @@ def save_distributor_prices(product_id: str, data: DistributorPriceCreate):
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f'保存失败: {e}')
+    finally:
+        db.close()
+
+
+@router.delete('/{product_id}/distributor-prices')
+def clear_distributor_prices(product_id: str):
+    """清空指定商品的所有分销商报价"""
+    db = get_session()
+    try:
+        p = db.query(Product).filter(Product.id == product_id).first()
+        if not p:
+            raise HTTPException(404, '商品不存在')
+        db.query(DistributorPrice).filter(DistributorPrice.product_id == product_id).delete()
+        db.commit()
+        return {'ok': True, 'message': '已清空'}
     finally:
         db.close()
 

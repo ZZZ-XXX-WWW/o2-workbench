@@ -165,11 +165,15 @@ def init_db():
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        for col in ['image_paths','all_embeddings','dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
+        for col in ['image_paths','all_embeddings','package_price','dist1_name','dist1_base_price','dist1_shipping_fee','dist1_remarks','dist2_name','dist2_base_price','dist2_shipping_fee','dist2_remarks']:
             try:
                 c.execute(f'ALTER TABLE products ADD COLUMN {col} VARCHAR(200) DEFAULT ""')
             except:
                 pass
+        try:
+            c.execute('ALTER TABLE distributor_prices ADD COLUMN package_price FLOAT DEFAULT 0')
+        except:
+            pass
         conn.commit()
         conn.close()
     except:
