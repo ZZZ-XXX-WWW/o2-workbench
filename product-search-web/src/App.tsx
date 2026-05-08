@@ -290,16 +290,29 @@ function App() {
       const d = await res.json();
       if (d.ok) {
         const p = d.product;
+        for (const dist of formData.distributors) {
+          if (dist.name || dist.price) {
+            await fetch(`${API}/api/products/${p.id}/distributor-price`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                distributor_key: 'dist_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+                distributor_name: dist.name,
+                base_price: parseFloat(dist.price) || 0,
+                shipping_fee: parseFloat(dist.ship) || 0,
+                total_price: (parseFloat(dist.price) || 0) + (parseFloat(dist.ship) || 0),
+                remarks: dist.note,
+              }),
+            });
+          }
+        }
         const newProduct: Product = {
           id: p.id, image: `${API}/api/products/image/${p.id}`,
-        images: p.image_urls || [],
-        images: p.image_urls || [],
+          images: p.image_urls || [],
           date: p.inquiry_date || '', factory: p.manufacturer_name || '', model: p.manufacturer_code,
           address: p.address || '', link: p.manufacturer_link || '',
           cost: String(p.cost_price || ''), note: p.remarks || '',
           shipping: String(p.shipping_fee || ''), color: p.color, size: p.size,
-          dist1_name: p.dist1_name || '', dist1_price: p.dist1_base_price || '', dist1_ship: p.dist1_shipping_fee || '', dist1_note: p.dist1_remarks || '',
-          dist2_name: p.dist2_name || '', dist2_price: p.dist2_base_price || '', dist2_ship: p.dist2_shipping_fee || '', dist2_note: p.dist2_remarks || '',
         };
         setProducts(prev => [...prev, newProduct]);
         setUploadImages([]); setUploadFiles([]);
