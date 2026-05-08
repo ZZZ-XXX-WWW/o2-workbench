@@ -318,7 +318,9 @@ def list_products(page: int = 1, page_size: int = 20, search: str = ''):
             query = query.filter(
                 Product.name.contains(search) |
                 Product.manufacturer_code.contains(search) |
-                Product.manufacturer_name.contains(search)
+                Product.manufacturer_name.contains(search) |
+                Product.dist1_name.contains(search) |
+                Product.dist2_name.contains(search)
             )
         total = query.count()
         products = query.order_by(Product.created_at.desc()).offset(

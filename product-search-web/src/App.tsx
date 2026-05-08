@@ -62,6 +62,7 @@ function App() {
   const [formData, setFormData] = useState({ date: '', factory: '', model: '', address: '', link: '', cost: '', shipping: '', color: '', size: '', note: '', d1_name: '', d1_price: '', d1_ship: '', d1_note: '', d2_name: '', d2_price: '', d2_ship: '', d2_note: '' });
   const [showMoreFields, setShowMoreFields] = useState(false);
   const [showManageDb, setShowManageDb] = useState(false);
+  const [manageSearch, setManageSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ factory: '', model: '', cost: '', shipping: '', color: '', size: '', note: '', date: '', address: '', link: '' });
 
@@ -338,9 +339,10 @@ function App() {
     setIsSearching(false);
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (search?: string) => {
     try {
-      const res = await fetch(`${API}/api/products/list?page_size=500`);
+      const url = search ? `${API}/api/products/list?page_size=500&search=${encodeURIComponent(search)}` : `${API}/api/products/list?page_size=500`;
+      const res = await fetch(url);
       const d = await res.json();
       const items = (d.products || []).map((p: any) => ({
         id: p.id, image: `${API}/api/products/image/${p.id}`,
@@ -833,8 +835,12 @@ function App() {
     <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
       <div style={{position:'relative',width:'85%',height:'85vh',background:'#fff',borderRadius:12,display:'flex',flexDirection:'column'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',borderBottom:'1px solid #e5e7eb'}}>
-          <h2 style={{margin:0,fontSize:16,fontWeight:600,color:'#1a1a1a'}}>管理数据库</h2>
-          <button onClick={() => setShowManageDb(false)} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X className="w-5 h-5" style={{color:'#6b7280'}} /></button>
+          <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
+            <h2 style={{margin:0,fontSize:16,fontWeight:600,color:'#1a1a1a',whiteSpace:'nowrap'}}>管理数据库</h2>
+            <input type="text" value={manageSearch} onChange={e => { setManageSearch(e.target.value); loadProducts(e.target.value); }} placeholder="搜索厂家名称、型号代码、分销商名称..." style={{flex:1,maxWidth:400,padding:'6px 12px',fontSize:13,border:'1px solid #d1d5db',borderRadius:6,outline:'none'}} />
+            {manageSearch && <button onClick={() => { setManageSearch(''); loadProducts(); }} style={{padding:'4px 8px',fontSize:11,border:'1px solid #d1d5db',background:'#fff',color:'#6b7280',borderRadius:4,cursor:'pointer'}}>清除</button>}
+          </div>
+          <button onClick={() => setShowManageDb(false); setManageSearch("");} style={{background:'none',border:'none',cursor:'pointer',padding:4}}><X className="w-5 h-5" style={{color:'#6b7280'}} /></button>
         </div>
         <div style={{flex:1,overflow:'auto',scrollbarWidth:'none',padding:16}}>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:12}}>
