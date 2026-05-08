@@ -637,7 +637,7 @@ function App() {
         <div className="flex items-center gap-4">
           <motion.div className={`flex items-center gap-2 text-sm px-4 py-2 rounded-full ${currentTheme === 'tech' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/10'}`}>
             <FolderOpen className="w-4 h-4" />
-            <span>{products.length} 件商品</span>
+            <span>{manageTotal} 件商品</span>
           </motion.div>
           <div>
             <button ref={themeButtonRef} onClick={() => setShowThemeMenu(!showThemeMenu)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${currentTheme === 'tech' ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400' : 'bg-white/10 hover:bg-white/20'}`}>
@@ -721,7 +721,7 @@ function App() {
             {showMoreFields ? '收起更多' : '展开更多'}
           </button>
 
-          <div className={`text-xs mb-2 font-medium ${textSecondary}`}>数据库共 {products.length} 件商品</div>
+          <div className={`text-xs mb-2 font-medium ${textSecondary}`}>数据库共 {manageTotal} 件商品</div>
 
           <button onClick={handleAddProduct} disabled={!uploadImage} className={`${theme.btnGreen} mb-2 disabled:opacity-50`}>添加到数据库</button>
           <button onClick={() => setShowManageDb(true)} className={`${theme.btnPurple} flex items-center justify-center gap-1 text-xs mb-2`}><Settings className="w-3 h-3" />管理数据库</button>
